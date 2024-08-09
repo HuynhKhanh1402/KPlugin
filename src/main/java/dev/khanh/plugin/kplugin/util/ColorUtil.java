@@ -1,4 +1,4 @@
-package dev.khanh.plugin.util;
+package dev.khanh.plugin.kplugin.util;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;

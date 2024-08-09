@@ -1,5 +1,8 @@
-package dev.khanh.plugin;
+package dev.khanh.plugin.kplugin;
 
+import dev.khanh.plugin.kplugin.util.LoggerUtil;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
@@ -20,6 +23,8 @@ public abstract class KPlugin extends JavaPlugin {
         if (kInstance != null && !kInstance.getClass().equals(getClass())) {
             throw new IllegalStateException("An instance of " + kInstance.getClass().getName() + " is already active. Only one instance of a plugin can be active at a time.");
         }
+
+        printAuthorInfo();
 
         kInstance = this;
         enable();
@@ -50,5 +55,25 @@ public abstract class KPlugin extends JavaPlugin {
      */
     public static KPlugin getKInstance() {
         return kInstance;
+    }
+
+    /**
+     * Print out author information
+     */
+    private void printAuthorInfo() {
+        Bukkit.getConsoleSender().sendMessage("");
+
+        try {
+            Bukkit.getConsoleSender().sendMessage(Component.text("[" + getDescription().getName() + "] ")
+                    .append(Component.text("This plugin is developed by "))
+                    .append(Component.text("&#5899E2K&#6BA4E5h&#7DB0E8a&#90BBECn&#A2C6EFh&#B5D2F2H&#C7DDF5u&#DAE8F9y&#ECF4FCn&#FFFFFFh")));
+            Bukkit.getConsoleSender().sendMessage(Component.text("[" + getDescription().getName() + "] ")
+                    .append(Component.text("Discord: khanhhuynh")));
+        } catch (NoClassDefFoundError error) {
+            LoggerUtil.info("This plugin is developed by KhanhHuynh");
+            LoggerUtil.info("Discord: khanhhuynh");
+        }
+
+        Bukkit.getConsoleSender().sendMessage("");
     }
 }

@@ -1,7 +1,7 @@
-package dev.khanh.plugin.file;
+package dev.khanh.plugin.kplugin.file;
 
 import com.google.common.base.Preconditions;
-import dev.khanh.plugin.KPlugin;
+import dev.khanh.plugin.kplugin.KPlugin;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;

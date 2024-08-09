@@ -1,7 +1,7 @@
-package dev.khanh.plugin.file;
+package dev.khanh.plugin.kplugin.file;
 
-import dev.khanh.plugin.KPlugin;
-import dev.khanh.plugin.util.ColorUtil;
+import dev.khanh.plugin.kplugin.KPlugin;
+import dev.khanh.plugin.kplugin.util.ColorUtil;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;

@@ -1,6 +1,6 @@
-package dev.khanh.plugin.util;
+package dev.khanh.plugin.kplugin.util;
 
-import dev.khanh.plugin.KPlugin;
+import dev.khanh.plugin.kplugin.KPlugin;
 import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitTask;
 
