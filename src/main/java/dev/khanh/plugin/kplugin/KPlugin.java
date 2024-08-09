@@ -2,6 +2,8 @@ package dev.khanh.plugin.kplugin;
 
 import dev.khanh.plugin.kplugin.util.LoggerUtil;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -64,11 +66,13 @@ public abstract class KPlugin extends JavaPlugin {
         Bukkit.getConsoleSender().sendMessage("");
 
         try {
-            Bukkit.getConsoleSender().sendMessage(Component.text("[" + getDescription().getName() + "] ")
+            Bukkit.getConsoleSender().sendMessage(Component.text("[" + getDescription().getName() + "] ", NamedTextColor.AQUA)
+                    .append(Component.text("Enabling plugin: " + getDescription().getName(), NamedTextColor.AQUA)));
+            Bukkit.getConsoleSender().sendMessage(Component.text("[" + getDescription().getName() + "] ", NamedTextColor.AQUA)
                     .append(Component.text("This plugin is developed by "))
-                    .append(Component.text("&#5899E2K&#6BA4E5h&#7DB0E8a&#90BBECn&#A2C6EFh&#B5D2F2H&#C7DDF5u&#DAE8F9y&#ECF4FCn&#FFFFFFh")));
-            Bukkit.getConsoleSender().sendMessage(Component.text("[" + getDescription().getName() + "] ")
-                    .append(Component.text("Discord: khanhhuynh")));
+                    .append(MiniMessage.miniMessage().deserialize("<gradient:#084CFB:#ADF3FD>KhanhHuynh</gradient>")));
+            Bukkit.getConsoleSender().sendMessage(Component.text("[" + getDescription().getName() + "] ", NamedTextColor.AQUA)
+                    .append(Component.text("Discord: khanhhuynh", NamedTextColor.AQUA)));
         } catch (NoClassDefFoundError error) {
             LoggerUtil.info("This plugin is developed by KhanhHuynh");
             LoggerUtil.info("Discord: khanhhuynh");
