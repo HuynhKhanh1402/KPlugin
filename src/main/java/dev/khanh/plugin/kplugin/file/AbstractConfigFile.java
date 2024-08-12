@@ -66,6 +66,8 @@ public abstract class AbstractConfigFile {
 
             update(currentVersion, defaultVersion);
 
+            yaml.set("config-version", defaultVersion);
+
             try {
                 save();
             } catch (IOException e) {
