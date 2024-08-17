@@ -70,7 +70,7 @@ public abstract class KPlugin extends JavaPlugin {
                     .append(Component.text("Enabling plugin: " + getDescription().getName(), NamedTextColor.AQUA)));
             Bukkit.getConsoleSender().sendMessage(Component.text("[" + getDescription().getName() + "] ", NamedTextColor.AQUA)
                     .append(Component.text("This plugin is developed by "))
-                    .append(MiniMessage.miniMessage().deserialize("<gradient:#084CFB:#ADF3FD>KhanhHuynh</gradient>")));
+                    .append(MiniMessage.miniMessage().deserialize("<gradient:#EC9F05:#FF4E00>KhanhHuynh</gradient>")));
             Bukkit.getConsoleSender().sendMessage(Component.text("[" + getDescription().getName() + "] ", NamedTextColor.AQUA)
                     .append(Component.text("Discord: khanhhuynh", NamedTextColor.AQUA)));
         } catch (NoClassDefFoundError error) {
