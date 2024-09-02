@@ -16,7 +16,7 @@ public class InstanceManager {
      * A thread-safe map holding instances of various classes, keyed by their {@link Class} objects.
      * This map is used to store singleton instances.
      */
-    public static final Map<Class<?>, Object> INSTANCE_MAP = new ConcurrentHashMap<>();
+    private static final Map<Class<?>, Object> INSTANCE_MAP = new ConcurrentHashMap<>();
 
     /**
      * Removes all instances from the {@code INSTANCE_MAP}, effectively clearing
