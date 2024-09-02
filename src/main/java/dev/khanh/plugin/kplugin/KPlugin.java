@@ -1,5 +1,6 @@
 package dev.khanh.plugin.kplugin;
 
+import dev.khanh.plugin.kplugin.instance.InstanceManager;
 import dev.khanh.plugin.kplugin.util.LoggerUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -29,6 +30,8 @@ public abstract class KPlugin extends JavaPlugin {
         printAuthorInfo();
 
         kInstance = this;
+        InstanceManager.registerInstance(getClass(), this);
+
         enable();
     }
 
@@ -37,6 +40,9 @@ public abstract class KPlugin extends JavaPlugin {
      */
     @Override
     public void onDisable() {
+        // Clear singleton instances
+        InstanceManager.clearInstances();
+
         disable();
     }
 
