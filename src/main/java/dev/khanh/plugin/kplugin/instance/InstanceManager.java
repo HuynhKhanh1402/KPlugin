@@ -1,7 +1,9 @@
 package dev.khanh.plugin.kplugin.instance;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -52,6 +54,24 @@ public class InstanceManager {
         Object instance = INSTANCE_MAP.get(clazz);
         if (instance == null) {
             return null;
+        }
+        return clazz.cast(instance);
+    }
+
+
+    /**
+     * Retrieves the singleton instance of the specified class, or throws an exception if it doesn't exist.
+     *
+     * @param <T>   the type of the class
+     * @param clazz the class of the instance to be retrieved
+     * @return the instance of the specified class
+     * @throws NoSuchElementException  if no instance of the specified class exists
+     */
+    @NotNull
+    public static <T> T getInstanceOrElseThrow(Class<T> clazz) {
+        Object instance = INSTANCE_MAP.get(clazz);
+        if (instance == null) {
+            throw new NoSuchElementException("No such instance: " + clazz.getName());
         }
         return clazz.cast(instance);
     }
