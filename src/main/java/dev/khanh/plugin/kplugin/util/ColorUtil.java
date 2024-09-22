@@ -2,7 +2,6 @@ package dev.khanh.plugin.kplugin.util;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import org.bukkit.ChatColor;
 
 /**
  * Utility class for colorizing text in Minecraft using both legacy and modern methods.
@@ -15,7 +14,8 @@ public class ColorUtil {
      * @return the colorized string
      */
     public static String colorize(String input) {
-        return ChatColor.translateAlternateColorCodes('&', input);
+        Component component = modernColorize(input);
+        return LegacyComponentSerializer.legacyAmpersand().serialize(component);
     }
 
     /**
