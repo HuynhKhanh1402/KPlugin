@@ -2,6 +2,7 @@ package dev.khanh.plugin.kplugin.file;
 
 import dev.khanh.plugin.kplugin.KPlugin;
 import dev.khanh.plugin.kplugin.util.ColorUtil;
+import dev.khanh.plugin.kplugin.util.MessageUtil;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -49,6 +50,8 @@ public class MessageFile {
         yaml = YamlConfiguration.loadConfiguration(file);
 
         updateMessages();
+
+        MessageUtil.initialize(this);
     }
 
     /**
@@ -157,5 +160,15 @@ public class MessageFile {
      */
     public void sendMessage(CommandSender sender, String key) {
         sendMessage(sender, key, Function.identity());
+    }
+
+    /**
+     * Sends a message to the specified {@link CommandSender} with a prefix.
+     *
+     * @param sender  the command sender to receive the message
+     * @param message the message
+     */
+    public void sendMessageWithPrefix(CommandSender sender, String message) {
+        sender.sendMessage(ColorUtil.colorize(getMessage("prefix") + message));
     }
 }
