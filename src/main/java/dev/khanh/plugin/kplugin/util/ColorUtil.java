@@ -15,7 +15,7 @@ public class ColorUtil {
      */
     public static String colorize(String input) {
         Component component = modernColorize(input);
-        return LegacyComponentSerializer.legacyAmpersand().serialize(component);
+        return LegacyComponentSerializer.legacySection().serialize(component);
     }
 
     /**
