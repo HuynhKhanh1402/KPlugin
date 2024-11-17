@@ -28,25 +28,25 @@ import java.util.stream.Collectors;
 public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
     @Getter
     @Nullable
-    private final BukkitCommand parent;
-    private final List<BukkitCommand> subCommands;
+    protected final BukkitCommand parent;
+    protected final List<BukkitCommand> subCommands;
     @Getter
     @NotNull
-    private final String name;
+    protected final String name;
     @Getter
     @NotNull
-    private final List<String> alias;
+    protected final List<String> alias;
     @Getter
     @NotNull
-    private final String permission;
+    protected final String permission;
     @Getter
     @NotNull
-    private final String description;
+    protected final String description;
     @Getter
     @NotNull
-    private final String usage;
+    protected final String usage;
     @Getter
-    private static CommandMap commandMap;
+    protected static CommandMap commandMap;
 
     static {
         // Initialize the command map
@@ -344,7 +344,7 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      * @param checkAlias {@code true} to also check subcommand aliases, {@code false} otherwise
      * @return the {@link BukkitCommand} object representing the subcommand, or {@code null} if not found
      */
-    private BukkitCommand getSubCommand(String name, boolean checkAlias){
+    public BukkitCommand getSubCommand(String name, boolean checkAlias){
         for (BukkitCommand subCommand: subCommands){
 
             if (subCommand.getName().equalsIgnoreCase(name)){
