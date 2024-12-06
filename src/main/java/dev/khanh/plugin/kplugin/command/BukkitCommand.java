@@ -165,17 +165,17 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      *
      * @param subCommand the subcommand to add
      * @return the BukkitCommand instance
-     * @throws IllegalAccessException if a duplicate subcommand or alias is found
+     * @throws IllegalArgumentException if a duplicate subcommand or alias is found
      */
-    public final BukkitCommand addSubCommand(BukkitCommand subCommand) throws IllegalAccessException {
+    public final BukkitCommand addSubCommand(BukkitCommand subCommand) {
         for (BukkitCommand command : subCommands) {
             if (command.getName().equalsIgnoreCase(subCommand.getName())) {
-                throw new IllegalAccessException("Duplicate subcommand: " + command.getName());
+                throw new IllegalArgumentException("Duplicate subcommand: " + command.getName());
             }
 
             for (String alias : subCommand.getAlias()) {
                 if (command.getAlias().contains(alias)) {
-                    throw new IllegalAccessException("Duplicate subcommand alias: " + alias);
+                    throw new IllegalArgumentException("Duplicate subcommand alias: " + alias);
                 }
             }
         }
