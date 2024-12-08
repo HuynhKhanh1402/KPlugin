@@ -3,6 +3,7 @@ package dev.khanh.plugin.kplugin.util;
 import dev.khanh.plugin.kplugin.file.MessageFile;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Function;
 
@@ -26,7 +27,7 @@ public class MessageUtil {
      * @param key the key of the message
      * @return the message as a string, or an empty string if the key does not exist
      */
-    public static String getMessage(String key) {
+    public static @NotNull String getMessage(String key) {
         return getMessageFile().getMessage(key);
     }
 
@@ -37,7 +38,7 @@ public class MessageUtil {
      * @param function the function to apply to the message
      * @return the modified message as a string
      */
-    public static String getMessage(String key, Function<String, String> function) {
+    public static @NotNull String getMessage(String key, Function<String, String> function) {
         return getMessageFile().getMessage(key, function);
     }
 
@@ -47,7 +48,7 @@ public class MessageUtil {
      * @param key the key of the message
      * @return the colorized message as a string
      */
-    public static String getColorizedMessage(String key) {
+    public static @NotNull String getColorizedMessage(String key) {
         return getMessageFile().getColorizedMessage(key);
     }
 
@@ -58,7 +59,7 @@ public class MessageUtil {
      * @param function the function to apply to the message
      * @return the modified and colorized message as a string
      */
-    public static String getColorizedMessage(String key, Function<String, String> function) {
+    public static @NotNull String getColorizedMessage(String key, Function<String, String> function) {
         return getMessageFile().getColorizedMessage(key, function);
     }
 
@@ -68,7 +69,7 @@ public class MessageUtil {
      * @param key the key of the message
      * @return the modern colorized message as a {@link Component}
      */
-    public static Component getModernColorizedMessage(String key) {
+    public static @NotNull Component getModernColorizedMessage(String key) {
         return getMessageFile().getModernColorizedMessage(key);
     }
 
@@ -79,7 +80,7 @@ public class MessageUtil {
      * @param function the function to apply to the message
      * @return the modified and modern colorized message as a {@link Component}
      */
-    public static Component getModernColorizedMessage(String key, Function<String, String> function) {
+    public static @NotNull Component getModernColorizedMessage(String key, Function<String, String> function) {
         return getMessageFile().getModernColorizedMessage(key, function);
     }
 

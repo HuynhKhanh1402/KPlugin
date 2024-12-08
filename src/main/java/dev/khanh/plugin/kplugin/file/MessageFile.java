@@ -3,9 +3,11 @@ package dev.khanh.plugin.kplugin.file;
 import dev.khanh.plugin.kplugin.KPlugin;
 import dev.khanh.plugin.kplugin.util.ColorUtil;
 import dev.khanh.plugin.kplugin.util.MessageUtil;
+import lombok.Getter;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +20,7 @@ import java.util.function.Function;
  * A class for managing message configuration files in a Spigot plugin. It provides methods for
  * retrieving and sending messages with color formatting.
  */
+@Getter
 public class MessageFile {
     private final KPlugin plugin;
     private final File file;
@@ -84,7 +87,7 @@ public class MessageFile {
      * @param key the key of the message
      * @return the message as a string, or an empty string if the key does not exist
      */
-    public String getMessage(String key) {
+    public @NotNull String getMessage(String key) {
         return yaml.getString(key, "");
     }
 
@@ -95,7 +98,7 @@ public class MessageFile {
      * @param function the function to apply to the message
      * @return the modified message as a string
      */
-    public String getMessage(String key, Function<String, String> function) {
+    public @NotNull String getMessage(String key, Function<String, String> function) {
         return function.apply(getMessage(key));
     }
 
@@ -105,7 +108,7 @@ public class MessageFile {
      * @param key the key of the message
      * @return the colorized message as a string
      */
-    public String getColorizedMessage(String key) {
+    public @NotNull String getColorizedMessage(String key) {
         return ColorUtil.colorize(getMessage(key));
     }
 
@@ -116,7 +119,7 @@ public class MessageFile {
      * @param function the function to apply to the message
      * @return the modified and colorized message as a string
      */
-    public String getColorizedMessage(String key, Function<String, String> function) {
+    public @NotNull String getColorizedMessage(String key, Function<String, String> function) {
         return ColorUtil.colorize(getMessage(key, function));
     }
 
@@ -126,7 +129,7 @@ public class MessageFile {
      * @param key the key of the message
      * @return the modern colorized message as a {@link Component}
      */
-    public Component getModernColorizedMessage(String key) {
+    public @NotNull Component getModernColorizedMessage(String key) {
         return ColorUtil.modernColorize(getMessage(key));
     }
 
@@ -137,7 +140,7 @@ public class MessageFile {
      * @param function the function to apply to the message
      * @return the modified and modern colorized message as a {@link Component}
      */
-    public Component getModernColorizedMessage(String key, Function<String, String> function) {
+    public @NotNull Component getModernColorizedMessage(String key, Function<String, String> function) {
         return ColorUtil.modernColorize(getMessage(key, function));
     }
 
