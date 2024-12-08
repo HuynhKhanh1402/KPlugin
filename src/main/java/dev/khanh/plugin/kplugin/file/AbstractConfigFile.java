@@ -6,6 +6,7 @@ import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -194,6 +195,7 @@ public abstract class AbstractConfigFile {
      * @param def the default object if the path is not found
      * @return the object at the specified path or the default if not found
      */
+    @Contract("_, !null -> !null")
     public @Nullable Object get(@NotNull String path, @Nullable Object def) {
         return yaml.get(path, def);
     }
@@ -246,6 +248,7 @@ public abstract class AbstractConfigFile {
      * @param def the default string if the path is not found
      * @return the string at the specified path or the default if not found
      */
+    @Contract("_, !null -> !null")
     public @Nullable String getString(@NotNull String path, @Nullable String def) {
         return yaml.getString(path, def);
     }
@@ -401,6 +404,7 @@ public abstract class AbstractConfigFile {
      * @param def the default list if the path is not found
      * @return the list at the specified path or the default if not found
      */
+    @Contract("_, !null -> !null")
     public @Nullable List<?> getList(@NotNull String path, @Nullable List<?> def) {
         return yaml.getList(path, def);
     }
@@ -471,6 +475,7 @@ public abstract class AbstractConfigFile {
      * @param def the default ItemStack if the path is not found
      * @return the ItemStack at the specified path or the default if not found
      */
+    @Contract("_, !null -> !null")
     public @Nullable ItemStack getItemStack(@NotNull String path, @Nullable ItemStack def) {
         return yaml.getItemStack(path, def);
     }
@@ -502,6 +507,7 @@ public abstract class AbstractConfigFile {
      * @param def the default Location if the path is not found
      * @return the Location at the specified path or the default if not found
      */
+    @Contract("_, !null -> !null")
     public @Nullable Location getLocation(@NotNull String path, @Nullable Location def) {
         return yaml.getLocation(path, def);
     }
