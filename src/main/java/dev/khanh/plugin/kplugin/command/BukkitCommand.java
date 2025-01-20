@@ -214,7 +214,7 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      * @param sender the CommandSender executing the command
      * @param args   the arguments passed with the command
      */
-    public abstract void onCommand(CommandSender sender, List<String> args);
+    public abstract void onCommand(@NotNull CommandSender sender, @NotNull List<String> args);
 
     /**
      * Executes the command when it is called by a Player.
@@ -222,7 +222,7 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      * @param player the Player executing the command
      * @param args   the arguments passed with the command
      */
-    public abstract void onCommand(Player player, List<String> args);
+    public abstract void onCommand(@NotNull Player player, @NotNull List<String> args);
 
     /**
      * Provides tab-completion for the command when it is called by a CommandSender.
@@ -255,14 +255,8 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      *
      * @return the "no permission" message
      */
+    @NotNull
     public abstract String getNoPermissionMessage();
-
-    /**
-     * Returns the message to be displayed when an unknown command or subcommand is executed.
-     *
-     * @return the "unknown command" message
-     */
-    public abstract String getUnknownCommandMessage();
 
     /**
      * Replaces placeholders in a string with the corresponding values from a replacement map.
