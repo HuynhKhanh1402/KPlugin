@@ -231,7 +231,8 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      * @param args   the arguments passed with the command
      * @return a list of tab-completion options
      */
-    public List<String> onTabComplete(CommandSender sender, List<String> args) {
+    @Nullable
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull List<String> args) {
         return subCommands.stream()
                 .filter(bukkitCommand -> bukkitCommand.hasPermission(sender))
                 .map(BukkitCommand::getName)
@@ -246,7 +247,8 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      * @param args   the arguments passed with the command
      * @return a list of tab-completion options
      */
-    public List<String> onTabComplete(Player player, List<String> args) {
+    @Nullable
+    public List<String> onTabComplete(@NotNull Player player, @NotNull List<String> args) {
         return onTabComplete((CommandSender) player, args);
     }
 
