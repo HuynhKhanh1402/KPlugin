@@ -221,7 +221,8 @@ public class ItemStackWrapper {
      * @param section The configuration section containing item data.
      * @param translator A function to translate strings, used for localization.
      * @return The constructed ItemStack.
-     * @throws IllegalArgumentException If the configuration is invalid.
+     * @throws IllegalArgumentException If the configuration contains invalid data
+     *                                  (e.g., invalid material, enchantment, or flag).
      */
     @SuppressWarnings("DataFlowIssue")
     public static ItemStack fromConfigurationSection(@NotNull ConfigurationSection section, @NotNull Function<String, String> translator) throws IllegalArgumentException {
@@ -280,6 +281,24 @@ public class ItemStackWrapper {
 
         return wrapper.getItemStack();
     }
+
+    /**
+     * Creates an {@link ItemStack} from a configuration section without string translation.
+     * <p>
+     * This is a shorthand for {@link #fromConfigurationSection(ConfigurationSection, Function)}
+     * with {@link Function#identity()} as the translator.
+     * </p>
+     *
+     * @param section The {@link ConfigurationSection} containing item data.
+     * @return The constructed {@link ItemStack}.
+     * @throws IllegalArgumentException If the configuration contains invalid data
+     *                                  (e.g., invalid material, enchantment, or flag).
+     */
+    public static ItemStack fromConfigurationSection(@NotNull ConfigurationSection section) throws IllegalArgumentException {
+        return  fromConfigurationSection(section, Function.identity());
+    }
+
+
     /**
      * Sets the skull meta using a player's name.
      *
