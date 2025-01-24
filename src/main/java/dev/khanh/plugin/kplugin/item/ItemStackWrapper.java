@@ -6,12 +6,12 @@ import com.google.common.cache.CacheBuilder;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import dev.khanh.plugin.kplugin.util.ColorUtil;
-import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-@Getter
+
 public class ItemStackWrapper {
     private final ItemStack itemStack;
 
@@ -125,6 +125,39 @@ public class ItemStackWrapper {
     }
 
     /**
+     * Adds an ItemFlag to the ItemStack.
+     *
+     * @param flags The ItemFlags to add.
+     * @return This ItemStackWrapper for chaining.
+     */
+    public ItemStackWrapper addItemFlags(ItemFlag... flags) {
+        setItemMeta(meta -> meta.addItemFlags(flags));
+        return this;
+    }
+
+    /**
+     * Removes an ItemFlag from the ItemStack.
+     *
+     * @param flags The ItemFlags to remove.
+     * @return This ItemStackWrapper for chaining.
+     */
+    public ItemStackWrapper removeItemFlags(ItemFlag... flags) {
+        setItemMeta(meta -> meta.removeItemFlags(flags));
+        return this;
+    }
+
+    /**
+     * Checks if the ItemStack has a specific ItemFlag.
+     *
+     * @param flag The ItemFlag to check.
+     * @return True if the ItemStack has the flag, false otherwise.
+     */
+    public boolean hasItemFlag(ItemFlag flag) {
+        ItemMeta meta = itemStack.getItemMeta();
+        return meta != null && meta.hasItemFlag(flag);
+    }
+
+    /**
      * Sets the skull texture for the item using either a player name or a base64 string.
      * <p>
      * If the value matches a valid player name, the skull will be set to that player's head.
@@ -147,6 +180,40 @@ public class ItemStackWrapper {
         });
         return this;
     }
+
+    /**
+     * Returns the original wrapped {@link ItemStack}.
+     * Modifications to the returned {@link ItemStack} affect the wrapper directly.
+     *
+     * @return The original wrapped {@link ItemStack}.
+     */
+    @NotNull
+    public ItemStack getItemStack() {
+        return itemStack;
+    }
+
+    /**
+     * Returns a cloned copy of the wrapped {@link ItemStack}.
+     * Modifications to the returned copy do not affect the wrapper.
+     *
+     * @return A cloned copy of the wrapped {@link ItemStack}.
+     */
+    @NotNull
+    public ItemStack toItemStack() {
+        return itemStack.clone();
+    }
+
+    /**
+     * Builds and returns a cloned copy of the wrapped {@link ItemStack},
+     * representing its final state.
+     *
+     * @return A cloned copy of the wrapped {@link ItemStack}.
+     */
+    @NotNull
+    public ItemStack build() {
+        return itemStack.clone();
+    }
+
 
     /**
      * Creates an ItemStack from a configuration section.
@@ -193,6 +260,18 @@ public class ItemStackWrapper {
 
         if (section.contains("custom-model-data")) {
             wrapper.setCustomModelData(section.getInt("custom-model-data"));
+        }
+
+        if (section.contains("flags")) {
+            List<String> flagNames = section.getStringList("flags");
+            flagNames.forEach(flagName -> {
+                try {
+                    ItemFlag flag = ItemFlag.valueOf(flagName.toUpperCase());
+                    wrapper.addItemFlags(flag);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Invalid ItemFlag: " + flagName);
+                }
+            });
         }
 
         if (section.contains("skull")) {
