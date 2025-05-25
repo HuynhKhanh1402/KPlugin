@@ -214,7 +214,7 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      * @param sender the CommandSender executing the command
      * @param args   the arguments passed with the command
      */
-    public abstract void onCommand(CommandSender sender, List<String> args);
+    public abstract void onCommand(@NotNull CommandSender sender, @NotNull List<String> args);
 
     /**
      * Executes the command when it is called by a Player.
@@ -222,7 +222,7 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      * @param player the Player executing the command
      * @param args   the arguments passed with the command
      */
-    public abstract void onCommand(Player player, List<String> args);
+    public abstract void onCommand(@NotNull Player player, @NotNull List<String> args);
 
     /**
      * Provides tab-completion for the command when it is called by a CommandSender.
@@ -231,7 +231,8 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      * @param args   the arguments passed with the command
      * @return a list of tab-completion options
      */
-    public List<String> onTabComplete(CommandSender sender, List<String> args) {
+    @Nullable
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull List<String> args) {
         return subCommands.stream()
                 .filter(bukkitCommand -> bukkitCommand.hasPermission(sender))
                 .map(BukkitCommand::getName)
@@ -246,7 +247,8 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      * @param args   the arguments passed with the command
      * @return a list of tab-completion options
      */
-    public List<String> onTabComplete(Player player, List<String> args) {
+    @Nullable
+    public List<String> onTabComplete(@NotNull Player player, @NotNull List<String> args) {
         return onTabComplete((CommandSender) player, args);
     }
 
@@ -255,14 +257,8 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      *
      * @return the "no permission" message
      */
+    @NotNull
     public abstract String getNoPermissionMessage();
-
-    /**
-     * Returns the message to be displayed when an unknown command or subcommand is executed.
-     *
-     * @return the "unknown command" message
-     */
-    public abstract String getUnknownCommandMessage();
 
     /**
      * Replaces placeholders in a string with the corresponding values from a replacement map.
