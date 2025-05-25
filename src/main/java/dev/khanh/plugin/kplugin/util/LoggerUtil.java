@@ -7,6 +7,28 @@ import dev.khanh.plugin.kplugin.KPlugin;
  * logging messages with different severity levels.
  */
 public class LoggerUtil {
+    /**
+     * Whether debug mode is enabled.
+     */
+    private static boolean debugEnabled = false;
+
+    /**
+     * Enables or disables debug logging.
+     *
+     * @param enabled true to enable debug mode, false to disable
+     */
+    public static void setDebug(boolean enabled) {
+        debugEnabled = enabled;
+    }
+
+    /**
+     * Returns whether debug mode is enabled.
+     *
+     * @return true if debug is enabled
+     */
+    public static boolean isDebug() {
+        return debugEnabled;
+    }
 
     /**
      * Logs an info level message.
@@ -63,5 +85,28 @@ public class LoggerUtil {
      */
     public static void severe(String message, Object... args) {
         KPlugin.getKInstance().getLogger().severe(String.format(message, args));
+    }
+
+    /**
+     * Logs a debug level message if debug mode is enabled.
+     *
+     * @param message the message to log
+     */
+    public static void debug(String message) {
+        if (debugEnabled) {
+            KPlugin.getKInstance().getLogger().info("[DEBUG] " + message);
+        }
+    }
+
+    /**
+     * Logs a formatted debug level message if debug mode is enabled.
+     *
+     * @param message the message format string
+     * @param args    the arguments referenced by the format specifiers in the message
+     */
+    public static void debug(String message, Object... args) {
+        if (debugEnabled) {
+            KPlugin.getKInstance().getLogger().info("[DEBUG] " + String.format(message, args));
+        }
     }
 }
