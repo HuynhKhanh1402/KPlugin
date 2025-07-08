@@ -3,6 +3,8 @@ package dev.khanh.plugin.kplugin.util;
 import dev.khanh.plugin.kplugin.KPlugin;
 import org.bukkit.Bukkit;
 
+import java.util.Objects;
+
 /**
  * Utility class for logging messages in a Spigot plugin. This class provides convenient methods for
  * logging messages with different severity levels.
@@ -20,6 +22,9 @@ public class LoggerUtil {
      */
     public static void setDebug(boolean enabled) {
         debugEnabled = enabled;
+        if (debugEnabled) {
+            debug("Enabled Debug Mode");
+        }
     }
 
     /**
@@ -125,7 +130,7 @@ public class LoggerUtil {
      * @param args    the arguments referenced by the format specifiers in the message
      */
     public static void debug(String message, Object... args) {
-        if (debugEnabled) {
+        if (debugEnabled || Objects.equals(System.getProperty("kplugin.debug"), "true")) {
             KPlugin.getKInstance().getLogger().info("[DEBUG] " + String.format(message, args));
         }
     }
