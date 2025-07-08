@@ -25,11 +25,11 @@ import java.util.stream.Collectors;
  * An abstract class representing a Bukkit command.
  * Extend this class to create custom Bukkit commands.
  */
-public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
+public abstract class KCommand implements CommandExecutor, TabCompleter {
     @Getter
     @Nullable
-    protected final BukkitCommand parent;
-    protected final List<BukkitCommand> subCommands;
+    protected final KCommand parent;
+    protected final List<KCommand> subCommands;
     @Getter
     @NotNull
     protected final String name;
@@ -65,7 +65,7 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * Constructs a BukkitCommand with the specified parameters.
+     * Constructs a KCommand with the specified parameters.
      *
      * @param name        the name of the command
      * @param parent      the parent command (nullable)
@@ -74,8 +74,8 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      * @param description the description of the command (nullable)
      * @param usage       the usage syntax of the command (nullable)
      */
-    public BukkitCommand(@NotNull String name, @Nullable BukkitCommand parent, @Nullable List<String> alias,
-                         @Nullable String permission, @Nullable String description, @Nullable String usage) {
+    public KCommand(@NotNull String name, @Nullable KCommand parent, @Nullable List<String> alias,
+                    @Nullable String permission, @Nullable String description, @Nullable String usage) {
         this.parent = parent;
         this.subCommands = new ArrayList<>();
         this.name = name;
@@ -86,7 +86,7 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * Constructs a BukkitCommand with the specified parameters.
+     * Constructs a KCommand with the specified parameters.
      *
      * @param name        the name of the command
      * @param alias       the aliases of the command (nullable)
@@ -94,26 +94,26 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      * @param description the description of the command (nullable)
      * @param usage       the usage syntax of the command (nullable)
      */
-    public BukkitCommand(@NotNull String name, @Nullable List<String> alias, @Nullable String permission,
-                         @Nullable String description, @Nullable String usage) {
+    public KCommand(@NotNull String name, @Nullable List<String> alias, @Nullable String permission,
+                    @Nullable String description, @Nullable String usage) {
         this(name, null, alias, permission, description, usage);
     }
 
     /**
-     * Constructs a BukkitCommand with the specified parameters.
+     * Constructs a KCommand with the specified parameters.
      *
      * @param name        the name of the command
      * @param permission  the permission required to execute the command (nullable)
      * @param description the description of the command (nullable)
      * @param usage       the usage syntax of the command (nullable)
      */
-    public BukkitCommand(@NotNull String name, @Nullable String permission, @Nullable String description,
-                         @Nullable String usage) {
+    public KCommand(@NotNull String name, @Nullable String permission, @Nullable String description,
+                    @Nullable String usage) {
         this(name, null, null, permission, description, usage);
     }
 
     /**
-     * Constructs a BukkitCommand with the specified parameters.
+     * Constructs a KCommand with the specified parameters.
      *
      * @param name        the name of the command
      * @param parent      the parent command (nullable)
@@ -121,54 +121,54 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      * @param description the description of the command (nullable)
      * @param usage       the usage syntax of the command (nullable)
      */
-    public BukkitCommand(@NotNull String name, @Nullable BukkitCommand parent, @Nullable String permission,
-                         @Nullable String description, @Nullable String usage) {
+    public KCommand(@NotNull String name, @Nullable KCommand parent, @Nullable String permission,
+                    @Nullable String description, @Nullable String usage) {
         this(name, parent, null, permission, description, usage);
     }
 
     /**
-     * Constructs a BukkitCommand with the specified parameters.
+     * Constructs a KCommand with the specified parameters.
      *
      * @param name       the name of the command
      * @param parent     the parent command (nullable)
      * @param permission the permission required to execute the command (nullable)
      */
-    public BukkitCommand(@NotNull String name, @Nullable BukkitCommand parent, @Nullable String permission) {
+    public KCommand(@NotNull String name, @Nullable KCommand parent, @Nullable String permission) {
         this(name, parent, null, permission, null, null);
     }
 
     /**
-     * Constructs a BukkitCommand with the specified parameters.
+     * Constructs a KCommand with the specified parameters.
      *
      * @param name        the name of the command
      * @param parent      the parent command (nullable)
      * @param description the description of the command (nullable)
      * @param usage       the usage syntax of the command (nullable)
      */
-    public BukkitCommand(@NotNull String name, @Nullable BukkitCommand parent, @Nullable String description,
-                         @Nullable String usage) {
+    public KCommand(@NotNull String name, @Nullable KCommand parent, @Nullable String description,
+                    @Nullable String usage) {
         this(name, parent, null, null, description, usage);
     }
 
     /**
-     * Constructs a BukkitCommand with the specified parameters.
+     * Constructs a KCommand with the specified parameters.
      *
      * @param name   the name of the command
      * @param parent the parent command (nullable)
      */
-    public BukkitCommand(@NotNull String name, @Nullable BukkitCommand parent) {
+    public KCommand(@NotNull String name, @Nullable KCommand parent) {
         this(name, parent, null);
     }
 
     /**
-     * Adds a subcommand to this BukkitCommand.
+     * Adds a subcommand to this KCommand.
      *
      * @param subCommand the subcommand to add
-     * @return the BukkitCommand instance
+     * @return the KCommand instance
      * @throws IllegalArgumentException if a duplicate subcommand or alias is found
      */
-    public final BukkitCommand addSubCommand(BukkitCommand subCommand) {
-        for (BukkitCommand command : subCommands) {
+    public final KCommand addSubCommand(KCommand subCommand) {
+        for (KCommand command : subCommands) {
             if (command.getName().equalsIgnoreCase(subCommand.getName())) {
                 throw new IllegalArgumentException("Duplicate subcommand: " + command.getName());
             }
@@ -234,8 +234,8 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
     @Nullable
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull List<String> args) {
         return subCommands.stream()
-                .filter(bukkitCommand -> bukkitCommand.hasPermission(sender))
-                .map(BukkitCommand::getName)
+                .filter(kCommand -> kCommand.hasPermission(sender))
+                .map(KCommand::getName)
                 .filter(s -> s.startsWith(args.get(0)))
                 .collect(Collectors.toList());
     }
@@ -338,10 +338,10 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
      *
      * @param name the name or alias of the subcommand to retrieve
      * @param checkAlias {@code true} to also check subcommand aliases, {@code false} otherwise
-     * @return the {@link BukkitCommand} object representing the subcommand, or {@code null} if not found
+     * @return the {@link KCommand} object representing the subcommand, or {@code null} if not found
      */
-    public BukkitCommand getSubCommand(String name, boolean checkAlias){
-        for (BukkitCommand subCommand: subCommands){
+    public KCommand getSubCommand(String name, boolean checkAlias){
+        for (KCommand subCommand: subCommands){
 
             if (subCommand.getName().equalsIgnoreCase(name)){
                 return subCommand;
@@ -381,7 +381,7 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
 
             String nexArgs = args[0];
 
-            BukkitCommand subCommand = getSubCommand(nexArgs, true);
+            KCommand subCommand = getSubCommand(nexArgs, true);
 
             if (subCommand == null){
 
@@ -424,7 +424,7 @@ public abstract class BukkitCommand implements CommandExecutor, TabCompleter {
 
             String nexArgs = args[0];
 
-            BukkitCommand subCommand = getSubCommand(nexArgs, true);
+            KCommand subCommand = getSubCommand(nexArgs, true);
 
             if (subCommand != null){
 
