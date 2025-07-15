@@ -202,7 +202,7 @@ public abstract class KCommand implements CommandExecutor, TabCompleter {
             pluginCommand.setDescription(description);
             pluginCommand.setAliases(alias);
 
-            commandMap.register(name, pluginCommand);
+            commandMap.register(plugin.getName().toLowerCase(), pluginCommand);
         } catch (Exception exception) {
             exception.printStackTrace();
         }
