@@ -65,6 +65,17 @@ public class ItemStackWrapper {
     }
 
     /**
+     * Sets the lore of the item, replacing any existing lore.
+     *
+     * @param lines The lore lines to set.
+     * @return This ItemStackWrapper for chaining.
+     */
+    public ItemStackWrapper setLore(String... lines) {
+        setItemMeta(meta -> meta.setLore(Arrays.asList(lines)));
+        return this;
+    }
+
+    /**
      * Adds lore to the item.
      *
      * @param lines The lore lines to add.
@@ -180,6 +191,30 @@ public class ItemStackWrapper {
         });
         return this;
     }
+
+    /**
+     * Applies a translator function to the display name and lore of the item.
+     *
+     * @param translator A function to translate strings.
+     * @return This ItemStackWrapper for chaining.
+     */
+    public ItemStackWrapper applyTranslator(Function<String, String> translator) {
+        setItemMeta(meta -> {
+            if (meta.hasDisplayName()) {
+                meta.setDisplayName(translator.apply(meta.getDisplayName()));
+            }
+
+            if (meta.hasLore()) {
+                List<String> translatedLore = new ArrayList<>();
+                for (String line : meta.getLore()) {
+                    translatedLore.add(translator.apply(line));
+                }
+                meta.setLore(translatedLore);
+            }
+        });
+        return this;
+    }
+
 
     /**
      * Returns the original wrapped {@link ItemStack}.
