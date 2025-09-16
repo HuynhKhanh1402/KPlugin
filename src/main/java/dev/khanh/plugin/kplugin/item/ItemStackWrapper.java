@@ -1,10 +1,8 @@
 package dev.khanh.plugin.kplugin.item;
 
-import com.google.common.base.Preconditions;
+import com.destroystokyo.paper.profile.ProfileProperty;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.properties.Property;
 import dev.khanh.plugin.kplugin.util.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -17,7 +15,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -169,15 +166,17 @@ public class ItemStackWrapper {
     }
 
     /**
-     * Sets the skull texture for the item using either a player name or a base64 string.
+     * Sets the skull texture for the item using either a player name, UUID, URL, or base64 string.
      * <p>
-     * If the value matches a valid player name, the skull will be set to that player's head.
+     * If the value matches a valid player name pattern, the skull will be set to that player's head.
+     * If the value looks like a UUID, it will be parsed and used to fetch the corresponding player.
+     * If the value starts with "http://" or "https://", it will be treated as a texture URL.
      * Otherwise, the value is treated as a base64 texture string.
      * </p>
      *
-     * @param value The player name or base64 string for the skull's texture.
+     * @param value The player name, UUID, URL, or base64 string for the skull's texture.
      * @return This {@link ItemStackWrapper} instance for chaining.
-     * @throws IllegalArgumentException If the item meta is not a {@link SkullMeta}.
+     * @throws IllegalArgumentException If the item is not a player head.
      */
     public ItemStackWrapper setSkull(String value) {
         if (value == null || value.isEmpty()) {
@@ -185,29 +184,34 @@ public class ItemStackWrapper {
         }
 
         // Check if the item is a player head
-        Material type = itemStack.getType();
-        boolean isPlayerHead = type == Material.PLAYER_HEAD;
-        boolean isLegacyPlayerHead = false;
-        
-        // Handle legacy skull items (pre 1.13)
-        if (!isPlayerHead && type.name().equals("SKULL_ITEM") || type.name().equals("LEGACY_SKULL_ITEM")) {
-            // Legacy skulls use damage values where 3 = player skull
-            if (itemStack.getDurability() == 3) {
-                isLegacyPlayerHead = true;
-            }
-        }
-        
-        if (!isPlayerHead && !isLegacyPlayerHead) {
+        if (itemStack.getType() != Material.PLAYER_HEAD) {
             throw new IllegalArgumentException("Cannot set skull texture on non-skull item: " + itemStack.getType());
         }
 
         setItemMeta(meta -> {
-            Preconditions.checkArgument(meta instanceof SkullMeta,
-                    "Item meta must be an instance of SkullMeta");
+            SkullMeta skullMeta = (SkullMeta) meta;
+            
+            // Check if input is a valid player name
             if (PLAYER_NAME_REGEX.matcher(value).matches()) {
-                setSkullMetaByPlayerName(meta, value);
-            } else {
-                setSkullMetaByBase64(meta, value);
+                setSkullByPlayerName(skullMeta, value);
+            } 
+            // Check if input is a valid UUID
+            else if (value.length() == 36 && value.contains("-")) {
+                try {
+                    UUID uuid = UUID.fromString(value);
+                    setSkullByUUID(skullMeta, uuid);
+                } catch (IllegalArgumentException e) {
+                    // Not a valid UUID, treat as base64
+                    setSkullByBase64(skullMeta, value);
+                }
+            }
+            // Check if input is a URL
+            else if (value.startsWith("http://") || value.startsWith("https://")) {
+                setSkullByUrl(skullMeta, value);
+            }
+            // Treat as base64 texture
+            else {
+                setSkullByBase64(skullMeta, value);
             }
         });
         return this;
@@ -351,9 +355,15 @@ public class ItemStackWrapper {
             String skullValue = section.getString("skull", "");
             if (!skullValue.isEmpty()) {
                 try {
-                    wrapper.setSkull(translator.apply(skullValue));
+                    // Apply translation
+                    String translatedValue = translator.apply(skullValue);
+                    // Set skull texture
+                    wrapper.setSkull(translatedValue);
                 } catch (Exception e) {
-                    throw new IllegalArgumentException("Error setting skull texture: " + skullValue, e);
+                    // Log error but continue with default skull
+                    System.err.println("Error setting skull texture: " + skullValue);
+                    System.err.println("Cause: " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
         }
@@ -379,16 +389,12 @@ public class ItemStackWrapper {
 
 
     /**
-     * Sets the skull meta using a player's name.
+     * Sets the skull texture using a player name.
      *
-     * @param itemMeta The item meta to modify.
+     * @param skullMeta The skull meta to modify.
      * @param playerName The player name to set as the skull owner.
      */
-    private static void setSkullMetaByPlayerName(ItemMeta itemMeta, String playerName) {
-        Preconditions.checkArgument(itemMeta instanceof SkullMeta,
-                "ItemMeta must be an instance of SkullMeta.");
-        SkullMeta skullMeta = (SkullMeta) itemMeta;
-
+    private static void setSkullByPlayerName(SkullMeta skullMeta, String playerName) {
         // Try to get from cache first
         OfflinePlayer offlinePlayer = CACHED_OFFLINE_PLAYERS.getIfPresent(playerName);
 
@@ -397,20 +403,17 @@ public class ItemStackWrapper {
             offlinePlayer = Bukkit.getPlayer(playerName);
 
             if (offlinePlayer == null) {
-                // Then check in server's offline players
+                // Check if getOfflinePlayerIfCached method is available (Paper API)
                 try {
-                    // getOfflinePlayerIfCached was added in Paper - gracefully handle if not available
-                    java.lang.reflect.Method method = Bukkit.class.getMethod("getOfflinePlayerIfCached", String.class);
-                    offlinePlayer = (OfflinePlayer) method.invoke(null, playerName);
-                } catch (NoSuchMethodException | IllegalAccessException | java.lang.reflect.InvocationTargetException e) {
-                    // Method doesn't exist (not Paper), ignore and continue to next approach
+                    offlinePlayer = Bukkit.getOfflinePlayerIfCached(playerName);
+                } catch (NoSuchMethodError ignored) {
+                    // Method not available, will use getOfflinePlayer below
                 }
             }
 
-            // If still not found, fetch using Bukkit.getOfflinePlayer and cache
+            // If still not found, fetch using getOfflinePlayer and cache
             if (offlinePlayer == null) {
                 try {
-                    //noinspection deprecation
                     offlinePlayer = CACHED_OFFLINE_PLAYERS.get(playerName, () -> Bukkit.getOfflinePlayer(playerName));
                 } catch (ExecutionException e) {
                     throw new RuntimeException("Failed to fetch offline player: " + playerName, e);
@@ -418,109 +421,85 @@ public class ItemStackWrapper {
             }
         }
 
-        try {
-            skullMeta.setOwningPlayer(offlinePlayer);
-        } catch (Exception e) {
-            // Fallback to deprecated method if the new one fails
-            try {
-                // This is deprecated but might be needed in some versions
-                java.lang.reflect.Method setOwnerMethod = skullMeta.getClass().getMethod("setOwner", String.class);
-                setOwnerMethod.invoke(skullMeta, playerName);
-            } catch (Exception ex) {
-                throw new RuntimeException("Failed to set skull owner: " + playerName, ex);
-            }
-        }
+        skullMeta.setOwningPlayer(offlinePlayer);
     }
 
     /**
-     * Sets the skull meta using a base64 string.
+     * Sets the skull texture using a UUID.
      *
-     * @param itemMeta The item meta to modify.
-     * @param base64 The base64 string to use for the skull texture.
+     * @param skullMeta The skull meta to modify.
+     * @param uuid The UUID to set as the skull owner.
      */
-    private static void setSkullMetaByBase64(ItemMeta itemMeta, String base64) {
-        Preconditions.checkArgument(itemMeta instanceof SkullMeta,
-                "ItemMeta must be an instance of SkullMeta.");
-        SkullMeta skullMeta = (SkullMeta) itemMeta;
+    private static void setSkullByUUID(SkullMeta skullMeta, UUID uuid) {
+        // Simply use Bukkit's built-in method to get the player by UUID
+        OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
+        skullMeta.setOwningPlayer(offlinePlayer);
+    }
+    
+    /**
+     * Sets the skull texture using a Mojang URL.
+     *
+     * @param skullMeta The skull meta to modify.
+     * @param url The URL to the skin texture.
+     */
+    private static void setSkullByUrl(SkullMeta skullMeta, String url) {
+        // Convert URL to Base64 and use that method
+        setSkullByBase64(skullMeta, urlToBase64(url));
+    }
+    
+    /**
+     * Converts a texture URL to a Base64 string.
+     *
+     * @param url The texture URL.
+     * @return A Base64 string representing the URL texture data.
+     */
+    private static String urlToBase64(String url) {
+        try {
+            // Make sure the URL is valid
+            java.net.URI actualUrl = new java.net.URI(url);
+            String toEncode = "{\"textures\":{\"SKIN\":{\"url\":\"" + actualUrl + "\"}}}";
+            return Base64.getEncoder().encodeToString(toEncode.getBytes());
+        } catch (Exception e) {
+            throw new RuntimeException("Invalid URL: " + url, e);
+        }
+    }
 
-        // Try using the official API first if it's available (newer versions of Bukkit)
-        try {
-            // Modern API approach (1.16+)
-            // First check if the setPlayerProfile method exists
-            Class<?> profileClass;
-            try {
-                profileClass = Class.forName("com.mojang.authlib.GameProfile");
-            } catch (ClassNotFoundException e) {
-                // Fallback to the legacy method
-                useReflectionForSkullTexture(skullMeta, base64);
-                return;
-            }
-            
-            try {
-                // Check if the method exists
-                skullMeta.getClass().getMethod("setPlayerProfile", profileClass);
-                
-                // If we reach here, the modern API exists, so try using Profile API
-                setSkullViaProfileAPI(skullMeta, base64);
-                return;
-            } catch (NoSuchMethodException e) {
-                // Method doesn't exist, use reflection
-            }
-            
-            // Fallback to reflection-based method
-            useReflectionForSkullTexture(skullMeta, base64);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to set skull texture using base64: " + e.getMessage(), e);
-        }
-    }
-    
     /**
-     * Uses reflection to set skull texture.
-     * 
-     * @param skullMeta The skull meta to modify
-     * @param base64 The base64 texture string
+     * Sets the skull texture using a base64 string.
+     *
+     * @param skullMeta The skull meta to modify.
+     * @param base64 The base64 string for the skull's texture.
      */
-    private static void useReflectionForSkullTexture(SkullMeta skullMeta, String base64) throws ReflectiveOperationException {
-        try {
-            Field profileField = skullMeta.getClass().getDeclaredField("profile");
-            profileField.setAccessible(true);
-            GameProfile profile = new GameProfile(UUID.randomUUID(), null);
-            profile.getProperties().put("textures", new Property("textures", base64));
-            profileField.set(skullMeta, profile);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            // Try alternative field names that might be used in different versions
-            try {
-                Field profileField = skullMeta.getClass().getDeclaredField("gameProfile");
-                profileField.setAccessible(true);
-                GameProfile profile = new GameProfile(UUID.randomUUID(), null);
-                profile.getProperties().put("textures", new Property("textures", base64));
-                profileField.set(skullMeta, profile);
-            } catch (NoSuchFieldException | IllegalAccessException e2) {
-                throw new RuntimeException("Failed to set skull texture using base64. This might be due to changes in the Bukkit API.", e2);
-            }
+    private static void setSkullByBase64(SkullMeta skullMeta, String base64) {
+        if (base64 == null || base64.isEmpty()) {
+            return;
         }
-    }
-    
-    /**
-     * Uses the modern Profile API to set skull texture (for newer versions).
-     * 
-     * @param skullMeta The skull meta to modify
-     * @param base64 The base64 texture string
-     */
-    private static void setSkullViaProfileAPI(SkullMeta skullMeta, String base64) {
-        GameProfile profile = new GameProfile(UUID.randomUUID(), null);
-        profile.getProperties().put("textures", new Property("textures", base64));
-        
+
         try {
-            java.lang.reflect.Method setProfileMethod = skullMeta.getClass().getDeclaredMethod("setPlayerProfile", profile.getClass());
-            setProfileMethod.setAccessible(true);
-            setProfileMethod.invoke(skullMeta, profile);
+            // Generate a stable UUID based on the texture data
+            UUID id = new UUID(
+                    base64.substring(base64.length() - Math.min(20, base64.length())).hashCode(),
+                    base64.substring(base64.length() - Math.min(10, base64.length())).hashCode()
+            );
+            
+            // Use Paper API directly - the safe approach for 1.16+
+            com.destroystokyo.paper.profile.PlayerProfile profile = Bukkit.createProfile(id, "");
+            profile.setProperty(
+                    new ProfileProperty("textures", base64)
+            );
+            skullMeta.setPlayerProfile(profile);
         } catch (Exception e) {
-            // Fall back to reflection-based approach
+            System.err.println("Failed to set skull texture using Paper API: " + e.getMessage());
+            
+            // Fallback to older Paper approach if the first method fails
             try {
-                useReflectionForSkullTexture(skullMeta, base64);
-            } catch (ReflectiveOperationException ex) {
-                throw new RuntimeException("Failed to set skull texture using modern API and reflection fallback", ex);
+                com.destroystokyo.paper.profile.PlayerProfile profile = Bukkit.createProfile(UUID.randomUUID(), "");
+                profile.setProperty(
+                        new ProfileProperty("textures", base64)
+                );
+                skullMeta.setPlayerProfile(profile);
+            } catch (Exception fallbackError) {
+                throw new RuntimeException("Failed to set skull texture using all available methods", fallbackError);
             }
         }
     }
