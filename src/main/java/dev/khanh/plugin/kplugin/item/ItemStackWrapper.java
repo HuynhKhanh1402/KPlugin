@@ -1,8 +1,6 @@
 package dev.khanh.plugin.kplugin.item;
 
 import com.destroystokyo.paper.profile.ProfileProperty;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import dev.khanh.plugin.kplugin.util.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -16,19 +14,12 @@ import org.bukkit.inventory.meta.SkullMeta;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
 
 public class ItemStackWrapper {
     private final ItemStack itemStack;
-
-    private static final Cache<String, OfflinePlayer> CACHED_OFFLINE_PLAYERS = CacheBuilder
-            .newBuilder()
-            .expireAfterWrite(1, TimeUnit.HOURS)
-            .build();
 
     private static final Pattern PLAYER_NAME_REGEX = Pattern.compile("^[a-zA-Z0-9_]{2,16}$");
 
@@ -395,45 +386,32 @@ public class ItemStackWrapper {
      * @param playerName The player name to set as the skull owner.
      */
     private static void setSkullByPlayerName(SkullMeta skullMeta, String playerName) {
-        // Try to get from cache first
-        OfflinePlayer offlinePlayer = CACHED_OFFLINE_PLAYERS.getIfPresent(playerName);
+        OfflinePlayer offlinePlayer = Bukkit.getPlayer(playerName);
 
         if (offlinePlayer == null) {
-            // Check if player is online first (faster than checking offline players)
-            offlinePlayer = Bukkit.getPlayer(playerName);
-
-            if (offlinePlayer == null) {
-                // Check if getOfflinePlayerIfCached method is available (Paper API)
-                try {
-                    offlinePlayer = Bukkit.getOfflinePlayerIfCached(playerName);
-                } catch (NoSuchMethodError ignored) {
-                    // Method not available, will use getOfflinePlayer below
-                }
-            }
-
-            // If still not found, fetch using getOfflinePlayer and cache
-            if (offlinePlayer == null) {
-                try {
-                    offlinePlayer = CACHED_OFFLINE_PLAYERS.get(playerName, () -> Bukkit.getOfflinePlayer(playerName));
-                } catch (ExecutionException e) {
-                    throw new RuntimeException("Failed to fetch offline player: " + playerName, e);
-                }
+            try {
+                offlinePlayer = Bukkit.getOfflinePlayerIfCached(playerName);
+            } catch (NoSuchMethodError ignored) {
             }
         }
 
-        skullMeta.setOwningPlayer(offlinePlayer);
+        if (offlinePlayer != null) {
+            skullMeta.setOwningPlayer(offlinePlayer);
+        } else {
+            com.destroystokyo.paper.profile.PlayerProfile profile = Bukkit.createProfile(null, playerName);
+            skullMeta.setPlayerProfile(profile);
+        }
     }
 
     /**
-     * Sets the skull texture using a UUID.
+     * Sets the skull texture using a player UUID.
      *
      * @param skullMeta The skull meta to modify.
-     * @param uuid The UUID to set as the skull owner.
+     * @param uuid The player UUID to set as the skull owner.
      */
     private static void setSkullByUUID(SkullMeta skullMeta, UUID uuid) {
-        // Simply use Bukkit's built-in method to get the player by UUID
-        OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
-        skullMeta.setOwningPlayer(offlinePlayer);
+        com.destroystokyo.paper.profile.PlayerProfile profile = Bukkit.createProfile(uuid);
+        skullMeta.setPlayerProfile(profile);
     }
     
     /**
