@@ -180,6 +180,27 @@ public class ItemStackWrapper {
      * @throws IllegalArgumentException If the item meta is not a {@link SkullMeta}.
      */
     public ItemStackWrapper setSkull(String value) {
+        if (value == null || value.isEmpty()) {
+            return this;
+        }
+
+        // Check if the item is a player head
+        Material type = itemStack.getType();
+        boolean isPlayerHead = type == Material.PLAYER_HEAD;
+        boolean isLegacyPlayerHead = false;
+        
+        // Handle legacy skull items (pre 1.13)
+        if (!isPlayerHead && type.name().equals("SKULL_ITEM") || type.name().equals("LEGACY_SKULL_ITEM")) {
+            // Legacy skulls use damage values where 3 = player skull
+            if (itemStack.getDurability() == 3) {
+                isLegacyPlayerHead = true;
+            }
+        }
+        
+        if (!isPlayerHead && !isLegacyPlayerHead) {
+            throw new IllegalArgumentException("Cannot set skull texture on non-skull item: " + itemStack.getType());
+        }
+
         setItemMeta(meta -> {
             Preconditions.checkArgument(meta instanceof SkullMeta,
                     "Item meta must be an instance of SkullMeta");
@@ -206,7 +227,7 @@ public class ItemStackWrapper {
 
             if (meta.hasLore()) {
                 List<String> translatedLore = new ArrayList<>();
-                for (String line : meta.getLore()) {
+                for (String line : Objects.requireNonNull(meta.getLore())) {
                     translatedLore.add(translator.apply(line));
                 }
                 meta.setLore(translatedLore);
@@ -259,12 +280,16 @@ public class ItemStackWrapper {
      * @throws IllegalArgumentException If the configuration contains invalid data
      *                                  (e.g., invalid material, enchantment, or flag).
      */
-    @SuppressWarnings("DataFlowIssue")
     public static ItemStack fromConfigurationSection(@NotNull ConfigurationSection section, @NotNull Function<String, String> translator) throws IllegalArgumentException {
-        String materialName = section.getString("material", "STONE");
-        Material material = Material.matchMaterial(materialName);
-        if (material == null) {
-            throw new IllegalArgumentException("Invalid material: " + materialName);
+        Material material;
+        if (section.contains("skull") && !section.getString("skull", "").isEmpty()) {
+            material = Material.PLAYER_HEAD;
+        } else {
+            String materialName = section.getString("material", "STONE");
+            material = Material.matchMaterial(materialName);
+            if (material == null) {
+                throw new IllegalArgumentException("Invalid material: " + materialName);
+            }
         }
 
         ItemStackWrapper wrapper = new ItemStackWrapper(material)
@@ -283,15 +308,27 @@ public class ItemStackWrapper {
 
         if (section.contains("enchantments")) {
             ConfigurationSection enchantSection = section.getConfigurationSection("enchantments");
-            enchantSection.getKeys(false).forEach(key -> {
-                //noinspection deprecation
-                Enchantment enchantment = Enchantment.getByName(key.toUpperCase());
-                if (enchantment != null) {
-                    wrapper.addEnchant(enchantment, enchantSection.getInt(key, 1));
-                } else {
-                    throw new IllegalArgumentException("Invalid enchantment: " + key);
-                }
-            });
+            if (enchantSection != null) {
+                enchantSection.getKeys(false).forEach(key -> {
+                    //noinspection deprecation
+                    Enchantment enchantment = Enchantment.getByName(key.toUpperCase());
+                    if (enchantment != null) {
+                        wrapper.addEnchant(enchantment, enchantSection.getInt(key, 1));
+                    } else {
+                        // Try to get enchantment by key
+                        try {
+                            enchantment = Enchantment.getByKey(org.bukkit.NamespacedKey.minecraft(key.toLowerCase()));
+                            if (enchantment != null) {
+                                wrapper.addEnchant(enchantment, enchantSection.getInt(key, 1));
+                                return;
+                            }
+                        } catch (Exception ignored) {
+                            // Fall through to exception
+                        }
+                        throw new IllegalArgumentException("Invalid enchantment: " + key);
+                    }
+                });
+            }
         }
 
         if (section.contains("custom-model-data")) {
@@ -311,7 +348,14 @@ public class ItemStackWrapper {
         }
 
         if (section.contains("skull")) {
-            wrapper.setSkull(translator.apply(section.getString("skull", "")));
+            String skullValue = section.getString("skull", "");
+            if (!skullValue.isEmpty()) {
+                try {
+                    wrapper.setSkull(translator.apply(skullValue));
+                } catch (Exception e) {
+                    throw new IllegalArgumentException("Error setting skull texture: " + skullValue, e);
+                }
+            }
         }
 
         return wrapper.getItemStack();
@@ -345,21 +389,47 @@ public class ItemStackWrapper {
                 "ItemMeta must be an instance of SkullMeta.");
         SkullMeta skullMeta = (SkullMeta) itemMeta;
 
-        Optional<OfflinePlayer> cachedOfflinePlayer = Arrays.stream(Bukkit.getOfflinePlayers())
-                .filter(player -> playerName.equals(player.getName()))
-                .findFirst();
+        // Try to get from cache first
+        OfflinePlayer offlinePlayer = CACHED_OFFLINE_PLAYERS.getIfPresent(playerName);
 
-        OfflinePlayer offlinePlayer = cachedOfflinePlayer.orElseGet(() -> CACHED_OFFLINE_PLAYERS.getIfPresent(playerName));
         if (offlinePlayer == null) {
-            try {
-                //noinspection deprecation
-                offlinePlayer = CACHED_OFFLINE_PLAYERS.get(playerName, () -> Bukkit.getOfflinePlayer(playerName));
-            } catch (ExecutionException e) {
-                throw new RuntimeException(e);
+            // Check if player is online first (faster than checking offline players)
+            offlinePlayer = Bukkit.getPlayer(playerName);
+
+            if (offlinePlayer == null) {
+                // Then check in server's offline players
+                try {
+                    // getOfflinePlayerIfCached was added in Paper - gracefully handle if not available
+                    java.lang.reflect.Method method = Bukkit.class.getMethod("getOfflinePlayerIfCached", String.class);
+                    offlinePlayer = (OfflinePlayer) method.invoke(null, playerName);
+                } catch (NoSuchMethodException | IllegalAccessException | java.lang.reflect.InvocationTargetException e) {
+                    // Method doesn't exist (not Paper), ignore and continue to next approach
+                }
+            }
+
+            // If still not found, fetch using Bukkit.getOfflinePlayer and cache
+            if (offlinePlayer == null) {
+                try {
+                    //noinspection deprecation
+                    offlinePlayer = CACHED_OFFLINE_PLAYERS.get(playerName, () -> Bukkit.getOfflinePlayer(playerName));
+                } catch (ExecutionException e) {
+                    throw new RuntimeException("Failed to fetch offline player: " + playerName, e);
+                }
             }
         }
 
-        skullMeta.setOwningPlayer(offlinePlayer);
+        try {
+            skullMeta.setOwningPlayer(offlinePlayer);
+        } catch (Exception e) {
+            // Fallback to deprecated method if the new one fails
+            try {
+                // This is deprecated but might be needed in some versions
+                java.lang.reflect.Method setOwnerMethod = skullMeta.getClass().getMethod("setOwner", String.class);
+                setOwnerMethod.invoke(skullMeta, playerName);
+            } catch (Exception ex) {
+                throw new RuntimeException("Failed to set skull owner: " + playerName, ex);
+            }
+        }
     }
 
     /**
@@ -373,6 +443,44 @@ public class ItemStackWrapper {
                 "ItemMeta must be an instance of SkullMeta.");
         SkullMeta skullMeta = (SkullMeta) itemMeta;
 
+        // Try using the official API first if it's available (newer versions of Bukkit)
+        try {
+            // Modern API approach (1.16+)
+            // First check if the setPlayerProfile method exists
+            Class<?> profileClass;
+            try {
+                profileClass = Class.forName("com.mojang.authlib.GameProfile");
+            } catch (ClassNotFoundException e) {
+                // Fallback to the legacy method
+                useReflectionForSkullTexture(skullMeta, base64);
+                return;
+            }
+            
+            try {
+                // Check if the method exists
+                skullMeta.getClass().getMethod("setPlayerProfile", profileClass);
+                
+                // If we reach here, the modern API exists, so try using Profile API
+                setSkullViaProfileAPI(skullMeta, base64);
+                return;
+            } catch (NoSuchMethodException e) {
+                // Method doesn't exist, use reflection
+            }
+            
+            // Fallback to reflection-based method
+            useReflectionForSkullTexture(skullMeta, base64);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to set skull texture using base64: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * Uses reflection to set skull texture.
+     * 
+     * @param skullMeta The skull meta to modify
+     * @param base64 The base64 texture string
+     */
+    private static void useReflectionForSkullTexture(SkullMeta skullMeta, String base64) throws ReflectiveOperationException {
         try {
             Field profileField = skullMeta.getClass().getDeclaredField("profile");
             profileField.setAccessible(true);
@@ -380,7 +488,40 @@ public class ItemStackWrapper {
             profile.getProperties().put("textures", new Property("textures", base64));
             profileField.set(skullMeta, profile);
         } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException(e);
+            // Try alternative field names that might be used in different versions
+            try {
+                Field profileField = skullMeta.getClass().getDeclaredField("gameProfile");
+                profileField.setAccessible(true);
+                GameProfile profile = new GameProfile(UUID.randomUUID(), null);
+                profile.getProperties().put("textures", new Property("textures", base64));
+                profileField.set(skullMeta, profile);
+            } catch (NoSuchFieldException | IllegalAccessException e2) {
+                throw new RuntimeException("Failed to set skull texture using base64. This might be due to changes in the Bukkit API.", e2);
+            }
+        }
+    }
+    
+    /**
+     * Uses the modern Profile API to set skull texture (for newer versions).
+     * 
+     * @param skullMeta The skull meta to modify
+     * @param base64 The base64 texture string
+     */
+    private static void setSkullViaProfileAPI(SkullMeta skullMeta, String base64) {
+        GameProfile profile = new GameProfile(UUID.randomUUID(), null);
+        profile.getProperties().put("textures", new Property("textures", base64));
+        
+        try {
+            java.lang.reflect.Method setProfileMethod = skullMeta.getClass().getDeclaredMethod("setPlayerProfile", profile.getClass());
+            setProfileMethod.setAccessible(true);
+            setProfileMethod.invoke(skullMeta, profile);
+        } catch (Exception e) {
+            // Fall back to reflection-based approach
+            try {
+                useReflectionForSkullTexture(skullMeta, base64);
+            } catch (ReflectiveOperationException ex) {
+                throw new RuntimeException("Failed to set skull texture using modern API and reflection fallback", ex);
+            }
         }
     }
 
