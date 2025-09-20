@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 public abstract class KCommand implements CommandExecutor, TabCompleter {
     @Getter
     @Nullable
-    protected final KCommand parent;
+    private final KCommand parent;
     protected final List<KCommand> subCommands;
     @Getter
     @NotNull

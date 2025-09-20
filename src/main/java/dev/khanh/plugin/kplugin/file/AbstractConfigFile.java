@@ -19,10 +19,16 @@ public abstract class AbstractConfigFile extends GenericYamlFile {
      * Always uses the file {@code config.yml} in the plugin's data folder
      * and the default resource {@code config.yml} within the plugin JAR.
      * </p>
-     * @param plugin       Reference to the main plugin instance.
+     *
+     * @param plugin Reference to the main plugin instance.
      */
     public AbstractConfigFile(KPlugin plugin) {
-        super(plugin, new File(plugin.getDataFolder(), "config.yml"), "config.yml");
+        super(
+            plugin,
+            new File(plugin.getDataFolder(), "config.yml"),
+            "config.yml",
+            "config-version"
+        );
     }
 
     /**
@@ -38,5 +44,5 @@ public abstract class AbstractConfigFile extends GenericYamlFile {
      * @param newVersion The latest version number from the default resource.
      */
     @Override
-    abstract protected void update(int oldVersion, int newVersion);
+    protected abstract void update(int oldVersion, int newVersion);
 }

@@ -21,10 +21,11 @@ import java.util.Objects;
 import java.util.Set;
 
 public abstract class GenericYamlFile {
-    protected final KPlugin plugin;
+    private final KPlugin plugin;
     protected final File file;
     protected final YamlConfiguration yaml;
     private final YamlConfiguration defaultYaml;
+    private final String configVersionKey;
 
     /**
      * Constructs a GenericYamlFile for the given file.
@@ -34,8 +35,22 @@ public abstract class GenericYamlFile {
      * @param resourcePath the path inside the jar resources to copy default from (e.g. "config.yml"); null to skip
      */
     public GenericYamlFile(KPlugin plugin, File file, @Nullable String resourcePath) {
+        this(plugin, file, resourcePath, "version");
+    }
+
+    /**
+     * Constructs a GenericYamlFile for the given file with a custom config version key.
+     * If the file does not exist, attempts to save it from plugin resources.
+     *
+     * @param plugin the plugin instance
+     * @param file the file to load/create
+     * @param resourcePath the path inside the jar resources to copy default from (e.g. "config.yml"); null to skip
+     * @param configVersionKey the key used to track the config version in the YAML file
+     */
+    public GenericYamlFile(KPlugin plugin, File file, @Nullable String resourcePath, String configVersionKey) {
         this.plugin = plugin;
         this.file = file;
+        this.configVersionKey = configVersionKey;
 
         if (resourcePath != null && !file.exists()) {
             plugin.saveResource(resourcePath, false);
@@ -60,13 +75,15 @@ public abstract class GenericYamlFile {
 
     /** Checks version and updates if default version is higher. */
     private void updateConfigVersions() {
-        Preconditions.checkArgument(yaml.contains("config-version"), "Missing config-version key");
-        int current = yaml.getInt("config-version");
-        int def = defaultYaml.getInt("config-version");
+        Preconditions.checkArgument(yaml.contains(configVersionKey),
+                String.format("Missing config version key (%s)", configVersionKey));
+
+        int current = yaml.getInt(configVersionKey);
+        int def = defaultYaml.getInt(configVersionKey);
         if (current < def) {
             plugin.getLogger().info("Updating config from v" + current + " to v" + def);
             update(current, def);
-            yaml.set("config-version", def);
+            yaml.set(configVersionKey, def);
             try {
                 save();
             } catch (IOException e) {
@@ -81,7 +98,7 @@ public abstract class GenericYamlFile {
     }
 
     /**
-     * Called when config-version needs to be updated.
+     * Called when config version key needs to be updated.
      * @param oldVersion current file version
      * @param newVersion default file version
      */
