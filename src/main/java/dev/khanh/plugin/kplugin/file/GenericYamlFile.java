@@ -23,9 +23,10 @@ import java.util.Set;
 public abstract class GenericYamlFile {
     private final KPlugin plugin;
     protected final File file;
-    protected final YamlConfiguration yaml;
-    private final YamlConfiguration defaultYaml;
     private final String configVersionKey;
+    protected YamlConfiguration yaml;
+    private final YamlConfiguration defaultYaml;
+    @Nullable
 
     /**
      * Constructs a GenericYamlFile for the given file.
@@ -96,6 +97,14 @@ public abstract class GenericYamlFile {
     public void save() throws IOException {
         yaml.save(file);
     }
+    /** Reload the YAML file from disk. */
+    public void reload() {
+        this.yaml = YamlConfiguration.loadConfiguration(file);
+        if (defaultYaml != null) {
+            updateConfigVersions();
+        }
+    }
+
 
     /**
      * Called when config version key needs to be updated.
