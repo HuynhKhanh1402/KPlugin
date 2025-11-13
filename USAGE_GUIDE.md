@@ -310,3 +310,71 @@ LoggerUtil.message("&aPlugin reloaded!");  // Colorized console message
 LoggerUtil.setDebug(true);
 LoggerUtil.debug("Debug info: %s", data);
 ```
+
+### TaskUtil (with FoliaLib support)
+TaskUtil: dev.khanh.plugin.kplugin.util.TaskUtil
+
+**Basic Task Scheduling:**
+```java
+// Sync (main/global thread) - for Bukkit API calls
+TaskUtil.runSync(() -> player.teleport(location));
+TaskUtil.runSync(() -> player.sendMessage("Hi!"), 60L);  // 3 seconds delay
+TaskUtil.runSyncRepeating(() -> checkPlayers(), 0L, 20L);  // Every second
+
+// Async (separate thread) - for heavy operations
+TaskUtil.runAsync(() -> {
+    String data = fetchFromDatabase();
+    TaskUtil.runSync(() -> player.sendMessage(data));  // Switch back to sync
+});
+TaskUtil.runAsync(() -> processData(), 100L);  // 5 seconds delay
+TaskUtil.runAsyncRepeating(() -> autoSave(), 0L, 6000L);  // Every 5 minutes
+```
+
+**Folia Region-Specific Tasks:**
+```java
+// Run on entity's region (Folia) or main thread (Spigot/Paper)
+TaskUtil.runAtEntity(player, () -> {
+    player.setHealth(20.0);
+    player.sendMessage("Healed!");
+});
+
+TaskUtil.runAtEntity(player, () -> player.damage(5), 60L);  // Damage after 3s
+TaskUtil.runAtEntityRepeating(npc, () -> npc.lookAt(target), 0L, 5L);  // Every 0.25s
+
+// Run on location's region (Folia) or main thread (Spigot/Paper)
+Location spawn = world.getSpawnLocation();
+TaskUtil.runAtLocation(spawn, () -> {
+    world.strikeLightning(spawn);
+});
+
+TaskUtil.runAtLocation(blockLocation, () -> block.setType(Material.AIR), 100L);
+TaskUtil.runAtLocationRepeating(location, () -> spawnParticles(), 0L, 10L);
+```
+
+**Task Management:**
+```java
+// Store task reference
+WrappedTask task = TaskUtil.runSyncRepeating(() -> updateBoard(), 0L, 20L);
+
+// Cancel task later
+TaskUtil.cancel(task);
+
+// Check server type
+if (TaskUtil.isFolia()) {
+    LoggerUtil.info("Running on Folia!");
+}
+```
+
+**Key Methods:**
+- `runSync(Runnable)` / `runSync(Runnable, delay)` - Global region sync
+- `runSyncRepeating(Runnable, delay, period)` - Repeating sync task
+- `runAsync(Runnable)` / `runAsync(Runnable, delay)` - Async thread
+- `runAsyncRepeating(Runnable, delay, period)` - Repeating async task
+- `runAtEntity(Entity, Runnable)` / `runAtEntity(Entity, Runnable, delay)` - Entity region
+- `runAtEntityRepeating(Entity, Runnable, delay, period)` - Repeating entity task
+- `runAtLocation(Location, Runnable)` / `runAtLocation(Location, delay)` - Location region
+- `runAtLocationRepeating(Location, Runnable, delay, period)` - Repeating location task
+- `cancel(WrappedTask)` - Cancel task
+- `isFolia()` - Check if running on Folia
+
+**Note:** 20 ticks = 1 second. All methods return `WrappedTask` for task management.

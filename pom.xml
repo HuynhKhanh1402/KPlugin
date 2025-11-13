@@ -6,7 +6,7 @@
 
     <groupId>dev.khanh.plugin</groupId>
     <artifactId>kplugin</artifactId>
-    <version>3.0.6</version>
+    <version>3.0.7</version>
 
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -42,6 +42,27 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <relocations>
+                        <relocation>
+                            <pattern>com.tcoded.folialib</pattern>
+                            <shadedPattern>dev.khanh.plugin.kplugin.lib.folialib</shadedPattern>
+                        </relocation>
+                    </relocations>
+                </configuration>
+            </plugin>
         </plugins>
         <resources>
             <resource>
@@ -63,6 +84,10 @@
         <repository>
             <id>codemc-nms-repository</id>
             <url>https://repo.codemc.io/repository/nms/</url>
+        </repository>
+        <repository>
+            <id>tcoded-releases</id>
+            <url>https://repo.tcoded.com/releases</url>
         </repository>
     </repositories>
 
@@ -90,6 +115,12 @@
             <artifactId>adventure-text-minimessage</artifactId>
             <version>4.17.0</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tcoded</groupId>
+            <artifactId>FoliaLib</artifactId>
+            <version>0.5.1</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 

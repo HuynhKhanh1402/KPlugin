@@ -1,5 +1,6 @@
 package dev.khanh.plugin.kplugin;
 
+import com.tcoded.folialib.FoliaLib;
 import dev.khanh.plugin.kplugin.instance.InstanceManager;
 import dev.khanh.plugin.kplugin.util.LoggerUtil;
 import net.kyori.adventure.text.Component;
@@ -14,6 +15,7 @@ import org.bukkit.plugin.java.JavaPlugin;
  */
 public abstract class KPlugin extends JavaPlugin {
     private static KPlugin kInstance;
+    private static FoliaLib foliaLib;
 
     /**
      * Called when the plugin is enabled. This method checks if an instance of the plugin already exists and throws an exception if so.
@@ -30,6 +32,7 @@ public abstract class KPlugin extends JavaPlugin {
         printAuthorInfo();
 
         kInstance = this;
+        foliaLib = new FoliaLib(this);
         InstanceManager.registerInstance(getClass(), this);
 
         enable();
@@ -63,6 +66,15 @@ public abstract class KPlugin extends JavaPlugin {
      */
     public static KPlugin getKInstance() {
         return kInstance;
+    }
+
+    /**
+     * Gets the FoliaLib instance for scheduler operations.
+     *
+     * @return the FoliaLib instance
+     */
+    public static FoliaLib getFoliaLib() {
+        return foliaLib;
     }
 
     /**
