@@ -20,19 +20,27 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+/**
+ * Generic helper for loading, saving and migrating YAML configuration files for the plugin.
+ *
+ * <p>This class wraps a {@link YamlConfiguration} backed by a {@link File} and optionally a
+ * default resource packaged in the plugin JAR. It will attempt to copy the resource to disk
+ * if the file doesn't exist and can perform simple version-based updates by overriding
+ * {@link #update(int, int)}.</p>
+ */
 public abstract class GenericYamlFile {
     private final KPlugin plugin;
     protected final File file;
     private final String configVersionKey;
     protected YamlConfiguration yaml;
-    private final YamlConfiguration defaultYaml;
-    @Nullable
+    private final @Nullable YamlConfiguration defaultYaml;
 
     /**
      * Constructs a GenericYamlFile for the given file.
      * If the file does not exist, attempts to save it from plugin resources.
-     * @param plugin the plugin instance
-     * @param file the file to load/create
+     *
+     * @param plugin       the plugin instance
+     * @param file         the file to load/create
      * @param resourcePath the path inside the jar resources to copy default from (e.g. "config.yml"); null to skip
      */
     public GenericYamlFile(KPlugin plugin, File file, @Nullable String resourcePath) {
@@ -43,9 +51,9 @@ public abstract class GenericYamlFile {
      * Constructs a GenericYamlFile for the given file with a custom config version key.
      * If the file does not exist, attempts to save it from plugin resources.
      *
-     * @param plugin the plugin instance
-     * @param file the file to load/create
-     * @param resourcePath the path inside the jar resources to copy default from (e.g. "config.yml"); null to skip
+     * @param plugin          the plugin instance
+     * @param file            the file to load/create
+     * @param resourcePath    the path inside the jar resources to copy default from (e.g. "config.yml"); null to skip
      * @param configVersionKey the key used to track the config version in the YAML file
      */
     public GenericYamlFile(KPlugin plugin, File file, @Nullable String resourcePath, String configVersionKey) {
@@ -93,10 +101,15 @@ public abstract class GenericYamlFile {
         }
     }
 
-    /** Save the YAML file to disk. */
+    /**
+     * Save the YAML file to disk.
+     *
+     * @throws IOException if saving fails
+     */
     public void save() throws IOException {
         yaml.save(file);
     }
+
     /** Reload the YAML file from disk. */
     public void reload() {
         this.yaml = YamlConfiguration.loadConfiguration(file);
@@ -108,6 +121,7 @@ public abstract class GenericYamlFile {
 
     /**
      * Called when config version key needs to be updated.
+     *
      * @param oldVersion current file version
      * @param newVersion default file version
      */
@@ -132,11 +146,11 @@ public abstract class GenericYamlFile {
     }
 
     /**
-     * Gets the default YAML configuration.
+     * Gets the default YAML configuration, if any.
      *
-     * @return the default YAML configuration
+     * @return the default YAML configuration, or null if none was provided
      */
-    public YamlConfiguration getDefaultYaml() {
+    public @Nullable YamlConfiguration getDefaultYaml() {
         return defaultYaml;
     }
 

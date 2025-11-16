@@ -7,9 +7,20 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Function;
 
+/**
+ * Utility class for sending messages from the messages.yml file to command senders.
+ * <p>
+ * Provides static methods for retrieving, colorizing, and sending messages with or without prefix.
+ * Must be initialized with a {@link MessageFile} before use.
+ */
 public class MessageUtil {
     private static MessageFile messageFile;
 
+    /**
+     * Initializes the MessageUtil with the given MessageFile.
+     *
+     * @param messageFile the MessageFile to use for message retrieval
+     */
     public static void initialize(MessageFile messageFile) {
         MessageUtil.messageFile = messageFile;
     }
