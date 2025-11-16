@@ -381,6 +381,49 @@ if (TaskUtil.isFolia()) {
 
 ---
 
+### TeleportUtil (with FoliaLib support)
+TeleportUtil: dev.khanh.plugin.kplugin.util.TeleportUtil
+
+> **⚠️ FOLIA SUPPORT**: TeleportUtil provides safe, asynchronous entity teleportation compatible with Folia, Paper, and Spigot. Always use TeleportUtil for entity teleports to ensure region/thread safety on Folia servers.
+
+**Platform Behavior:**
+- **Folia:** Teleports the entity asynchronously in its region (thread-safe)
+- **Paper (with async teleport support):** Teleports asynchronously
+- **Spigot:** Teleports on the next tick (not instant)
+
+**Why not instant teleport on Spigot?**
+- Avoids thread safety issues
+- Exposes bugs from expecting instant teleports on all platforms
+
+**Usage:**
+```java
+// Teleport entity asynchronously
+CompletableFuture<Boolean> future = TeleportUtil.teleportAsync(entity, location);
+future.thenAccept(success -> {
+    if (success) {
+        // Teleport succeeded
+    } else {
+        // Teleport failed
+    }
+});
+
+// With teleport cause
+CompletableFuture<Boolean> future = TeleportUtil.teleportAsync(entity, location, PlayerTeleportEvent.TeleportCause.PLUGIN);
+```
+
+**Best Practices:**
+- Always use the returned `CompletableFuture<Boolean>` to handle post-teleport logic
+- For Folia compatibility, prefer region-based scheduling for entity/world operations (see TaskUtil section)
+- Do not use Bukkit's synchronous teleport for entities on Folia
+
+**Golden Rule:**
+- For any entity teleport, use `TeleportUtil.teleportAsync()`
+- For any entity/world operation, use the correct TaskUtil region method (`runAtEntity`, `runAtLocation`)
+
+**See also:** [TaskUtil section above for region-based scheduling]
+
+---
+
 #### 📌 Best Practices for Folia Compatibility
 
 **1. Entity Operations - Always use `runAtEntity()`:**
@@ -490,5 +533,3 @@ TaskUtil.runAtLocationRepeating(shrineLocation, () -> {
 - Accessing entity/world from wrong thread → **ConcurrentModificationException** or crash
 - Using the correct methods ensures code works on **Spigot, Paper, and Folia**
 - FoliaLib automatically handles compatibility: on Spigot/Paper, everything runs on main thread
-
-**Note:** 20 ticks = 1 second. All methods return `WrappedTask` for task management.
