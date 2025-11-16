@@ -314,6 +314,8 @@ LoggerUtil.debug("Debug info: %s", data);
 ### TaskUtil (with FoliaLib support)
 TaskUtil: dev.khanh.plugin.kplugin.util.TaskUtil
 
+> **⚠️ FOLIA SUPPORT**: KPlugin fully supports Folia with region-based threading. To ensure your plugin works correctly on Spigot/Paper and Folia, **always prioritize using the appropriate task method for the correct context**.
+
 **Basic Task Scheduling:**
 ```java
 // Sync (main/global thread) - for Bukkit API calls
@@ -376,5 +378,117 @@ if (TaskUtil.isFolia()) {
 - `runAtLocationRepeating(Location, Runnable, delay, period)` - Repeating location task
 - `cancel(WrappedTask)` - Cancel task
 - `isFolia()` - Check if running on Folia
+
+---
+
+#### 📌 Best Practices for Folia Compatibility
+
+**1. Entity Operations - Always use `runAtEntity()`:**
+```java
+// ✅ CORRECT: Interact with entity in its own region
+TaskUtil.runAtEntity(player, () -> {
+    player.setHealth(20.0);
+    player.getInventory().addItem(item);
+    player.teleport(location);
+});
+
+// ❌ WRONG: Using runSync() for entity operations (may crash on Folia)
+TaskUtil.runSync(() -> player.setHealth(20.0)); // NOT SAFE!
+```
+
+**2. World/Block Operations - Always use `runAtLocation()`:**
+```java
+// ✅ CORRECT: Interact with block/world in its region
+TaskUtil.runAtLocation(blockLocation, () -> {
+    block.setType(Material.DIAMOND_BLOCK);
+    world.spawnParticle(Particle.FLAME, location, 10);
+    world.playSound(location, Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.0f);
+});
+
+// ❌ WRONG: Using runSync() for world operations
+TaskUtil.runSync(() -> block.setType(Material.STONE)); // NOT SAFE!
+```
+
+**3. Mixed Entity + Location Operations:**
+```java
+// ✅ CORRECT: Nested tasks when working with multiple regions
+TaskUtil.runAtEntity(player, () -> {
+    Location target = player.getTargetBlock(null, 5).getLocation();
+    TaskUtil.runAtLocation(target, () -> {
+        target.getWorld().createExplosion(target, 4.0f);
+    });
+});
+```
+
+**4. Global Operations - Use `runSync()`:**
+```java
+// ✅ CORRECT: Global operations not tied to specific entity/world
+TaskUtil.runSync(() -> {
+    Bukkit.broadcastMessage("Server restarting in 5 minutes!");
+    plugin.saveAllData();
+});
+```
+
+**5. Heavy Computations - Always use `runAsync()`:**
+```java
+// ✅ CORRECT: Heavy computation in async, then sync back when needed
+TaskUtil.runAsync(() -> {
+    List<UUID> topPlayers = calculateTopPlayers(); // Heavy operation
+    
+    TaskUtil.runSync(() -> {
+        Bukkit.broadcastMessage("Top players calculated!");
+    });
+});
+
+// ❌ WRONG: Heavy computation in sync task
+TaskUtil.runSync(() -> calculateTopPlayers()); // Will lag the server!
+```
+
+**6. Database Operations - Async + Entity Region:**
+```java
+// ✅ CORRECT: Load from database async, then apply to entity in its region
+TaskUtil.runAsync(() -> {
+    PlayerData data = database.loadPlayerData(player.getUniqueId());
+    
+    TaskUtil.runAtEntity(player, () -> {
+        player.setHealth(data.getHealth());
+        player.getInventory().setContents(data.getInventory());
+    });
+});
+```
+
+**7. Repeating Tasks with Entity/Location:**
+```java
+// ✅ CORRECT: Repeating task tracking entity movement
+TaskUtil.runAtEntityRepeating(boss, () -> {
+    // Update boss AI, check nearby players, etc.
+    for (Entity nearby : boss.getNearbyEntities(10, 10, 10)) {
+        if (nearby instanceof Player) {
+            ((Player) nearby).damage(1.0);
+        }
+    }
+}, 0L, 20L); // Every second
+
+// ✅ CORRECT: Repeating task for location-based effects
+TaskUtil.runAtLocationRepeating(shrineLocation, () -> {
+    shrineLocation.getWorld().spawnParticle(
+        Particle.ENCHANTMENT_TABLE, 
+        shrineLocation, 
+        20
+    );
+}, 0L, 10L); // Every 0.5 seconds
+```
+
+**⚠️ Golden Rules:**
+- **Entity operations** (player.xxx(), entity.xxx()) → `runAtEntity()`
+- **World/Block operations** (world.xxx(), block.xxx(), location-based) → `runAtLocation()`
+- **Global/Plugin operations** (Bukkit.xxx(), config, broadcasts) → `runSync()`
+- **Heavy computations** (database, calculations, I/O) → `runAsync()`
+
+**📚 Why This Matters:**
+- **Folia** uses region-based threading: each world region runs on its own thread
+- Accessing entity/world from wrong thread → **ConcurrentModificationException** or crash
+- Using the correct methods ensures code works on **Spigot, Paper, and Folia**
+- FoliaLib automatically handles compatibility: on Spigot/Paper, everything runs on main thread
 
 **Note:** 20 ticks = 1 second. All methods return `WrappedTask` for task management.
