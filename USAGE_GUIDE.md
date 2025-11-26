@@ -320,13 +320,13 @@ TaskUtil: dev.khanh.plugin.kplugin.util.TaskUtil
 ```java
 // Sync (main/global thread) - for Bukkit API calls
 TaskUtil.runSync(() -> player.teleport(location));
-TaskUtil.runSync(() -> player.sendMessage("Hi!"), 60L);  // 3 seconds delay
+TaskUtil.runSync(() -> player.teleport(location), 60L);  // 3 seconds delay
 TaskUtil.runSyncRepeating(() -> checkPlayers(), 0L, 20L);  // Every second
 
 // Async (separate thread) - for heavy operations
 TaskUtil.runAsync(() -> {
-    String data = fetchFromDatabase();
-    TaskUtil.runSync(() -> player.sendMessage(data));  // Switch back to sync
+    Location location = fetchFromDatabase();
+    TaskUtil.runSync(() -> player.teleport(location));  // Switch back to sync
 });
 TaskUtil.runAsync(() -> processData(), 100L);  // 5 seconds delay
 TaskUtil.runAsyncRepeating(() -> autoSave(), 0L, 6000L);  // Every 5 minutes
@@ -337,7 +337,6 @@ TaskUtil.runAsyncRepeating(() -> autoSave(), 0L, 6000L);  // Every 5 minutes
 // Run on entity's region (Folia) or main thread (Spigot/Paper)
 TaskUtil.runAtEntity(player, () -> {
     player.setHealth(20.0);
-    player.sendMessage("Healed!");
 });
 
 TaskUtil.runAtEntity(player, () -> player.damage(5), 60L);  // Damage after 3s
