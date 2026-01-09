@@ -194,7 +194,20 @@ no-permission: "&cNo permission!"
 player:
   welcome: "&aWelcome, &e%player%&a!"
   balance: "&aBalance: &e$%balance%"
+  silent-message: ""  # Empty messages won't be sent by default
 ```
+
+### Important Behavior
+
+**Missing Message Keys:**
+- If a message key doesn't exist in `messages.yml`, a warning will be logged to console with a stack trace
+- The method will return an empty string but **will not throw an exception**
+- This helps identify missing keys during development without crashing the plugin
+
+**Empty Messages:**
+- Messages configured as `""` (empty string) **will not be sent by default**
+- This allows you to disable specific messages without removing them from code
+- Use the `allowEmpty` parameter to override this behavior if needed
 
 **Usage:**
 ```java
@@ -207,18 +220,43 @@ Component component = MessageUtil.getModernColorizedMessage("player.welcome");
 String welcome = MessageUtil.getColorizedMessage("player.welcome", 
     m -> m.replace("%player%", player.getName()));
 
-// Send to player (with prefix)
+// Send to player (with prefix) - empty messages won't be sent
 MessageUtil.sendMessage(player, "player.welcome", 
     m -> m.replace("%player%", player.getName()));
+
+// Send even if message is empty
+MessageUtil.sendMessage(player, "player.silent-message", true);
+
+// With function and allowEmpty flag
+MessageUtil.sendMessage(player, "player.welcome", 
+    m -> m.replace("%player%", player.getName()), true);
 
 // Send custom message (with prefix)
 MessageUtil.sendMessageWithPrefix(player, "&aCustom message!");
 ```
 
+**Examples:**
+```java
+// ✅ Message exists and not empty - will be sent
+MessageUtil.sendMessage(player, "player.welcome");
+
+// ✅ Message is "" (empty) - will NOT be sent (default behavior)
+MessageUtil.sendMessage(player, "player.silent-message");
+
+// ✅ Message is "" (empty) but allowEmpty=true - WILL be sent
+MessageUtil.sendMessage(player, "player.silent-message", true);
+
+// ⚠️ Message key doesn't exist - logs warning + stacktrace, returns "", won't be sent
+MessageUtil.sendMessage(player, "non.existent.key");
+```
+
 **Key Methods:**
 - `getMessage(key)` / `getColorizedMessage(key)` / `getModernColorizedMessage(key)`
 - `getMessage(key, Function)` - With transformation
-- `sendMessage(sender, key)` / `sendMessage(sender, key, Function)`
+- `sendMessage(sender, key)` - Send message (empty messages skipped by default)
+- `sendMessage(sender, key, boolean allowEmpty)` - Send message with empty control
+- `sendMessage(sender, key, Function)` - Send with transformation (empty messages skipped)
+- `sendMessage(sender, key, Function, boolean allowEmpty)` - Send with transformation and empty control
 - `sendMessageWithPrefix(sender, message)` - Custom message with prefix
 
 ---

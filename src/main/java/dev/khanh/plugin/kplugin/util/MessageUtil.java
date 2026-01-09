@@ -98,22 +98,47 @@ public class MessageUtil {
     /**
      * Sends a message to the specified {@link CommandSender} with a prefix and applies a function to modify the message.
      *
+     * @param sender     the command sender to receive the message
+     * @param key        the key of the message
+     * @param function   the function to apply to the message
+     * @param allowEmpty whether to send the message if it's empty (defaults to false)
+     */
+    public static void sendMessage(CommandSender sender, String key, Function<String, String> function, boolean allowEmpty) {
+        getMessageFile().sendMessage(sender, key, function, allowEmpty);
+    }
+
+    /**
+     * Sends a message to the specified {@link CommandSender} with a prefix and applies a function to modify the message.
+     * Empty messages will not be sent by default.
+     *
      * @param sender   the command sender to receive the message
      * @param key      the key of the message
      * @param function the function to apply to the message
      */
     public static void sendMessage(CommandSender sender, String key, Function<String, String> function) {
-        getMessageFile().sendMessage(sender, key, function);
+        getMessageFile().sendMessage(sender, key, function, false);
     }
 
     /**
      * Sends a message to the specified {@link CommandSender} with a prefix.
+     * Empty messages will not be sent by default.
      *
      * @param sender the command sender to receive the message
      * @param key    the key of the message
      */
     public static void sendMessage(CommandSender sender, String key) {
-        getMessageFile().sendMessage(sender, key);
+        getMessageFile().sendMessage(sender, key, false);
+    }
+
+    /**
+     * Sends a message to the specified {@link CommandSender} with a prefix.
+     *
+     * @param sender     the command sender to receive the message
+     * @param key        the key of the message
+     * @param allowEmpty whether to send the message if it's empty
+     */
+    public static void sendMessage(CommandSender sender, String key, boolean allowEmpty) {
+        getMessageFile().sendMessage(sender, key, allowEmpty);
     }
 
     /**

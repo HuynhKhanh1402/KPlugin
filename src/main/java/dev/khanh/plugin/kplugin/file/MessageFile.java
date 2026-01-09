@@ -88,6 +88,11 @@ public class MessageFile {
      * @return the message as a string, or an empty string if the key does not exist
      */
     public @NotNull String getMessage(String key) {
+        if (!yaml.contains(key)) {
+            plugin.getLogger().warning("Message key '" + key + "' not found in messages.yml");
+            new Exception("Missing message key: '" + key + "' - Please add this key to your messages.yml file").printStackTrace();
+            return "";
+        }
         return yaml.getString(key, "");
     }
 
@@ -147,22 +152,51 @@ public class MessageFile {
     /**
      * Sends a message to the specified {@link CommandSender} with a prefix and applies a function to modify the message.
      *
+     * @param sender     the command sender to receive the message
+     * @param key        the key of the message
+     * @param function   the function to apply to the message
+     * @param allowEmpty whether to send the message if it's empty (defaults to false)
+     */
+    public void sendMessage(CommandSender sender, String key, Function<String, String> function, boolean allowEmpty) {
+        String message = getMessage(key, function);
+        if (message.isEmpty() && !allowEmpty) {
+            return;
+        }
+        sender.sendMessage(getModernColorizedMessage("prefix").append(ColorUtil.modernColorize(message)));
+    }
+
+    /**
+     * Sends a message to the specified {@link CommandSender} with a prefix and applies a function to modify the message.
+     * Empty messages will not be sent by default.
+     *
      * @param sender   the command sender to receive the message
      * @param key      the key of the message
      * @param function the function to apply to the message
      */
     public void sendMessage(CommandSender sender, String key, Function<String, String> function) {
-        sender.sendMessage(getModernColorizedMessage("prefix").append(getModernColorizedMessage(key, function)));
+        sendMessage(sender, key, function, false);
     }
 
     /**
      * Sends a message to the specified {@link CommandSender} with a prefix.
+     * Empty messages will not be sent by default.
      *
      * @param sender the command sender to receive the message
      * @param key    the key of the message
      */
     public void sendMessage(CommandSender sender, String key) {
-        sendMessage(sender, key, Function.identity());
+        sendMessage(sender, key, Function.identity(), false);
+    }
+
+    /**
+     * Sends a message to the specified {@link CommandSender} with a prefix.
+     *
+     * @param sender     the command sender to receive the message
+     * @param key        the key of the message
+     * @param allowEmpty whether to send the message if it's empty
+     */
+    public void sendMessage(CommandSender sender, String key, boolean allowEmpty) {
+        sendMessage(sender, key, Function.identity(), allowEmpty);
     }
 
     /**
