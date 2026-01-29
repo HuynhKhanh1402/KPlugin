@@ -32,7 +32,7 @@ public class TeleportUtil {
      * </ul>
      * @param entity   The entity to teleport
      * @param location The target location
-     * @return CompletableFuture<Boolean> indicating success
+     * @return CompletableFuture indicating success
      */
     public static CompletableFuture<Boolean> teleportAsync(Entity entity, Location location) {
         return KPlugin.getFoliaLib().getScheduler().teleportAsync(entity, location);
@@ -50,7 +50,7 @@ public class TeleportUtil {
      * @param entity   The entity to teleport
      * @param location The target location
      * @param cause    The teleport cause
-     * @return CompletableFuture<Boolean> indicating success
+     * @return CompletableFuture indicating success
      */
     public static CompletableFuture<Boolean> teleportAsync(Entity entity, Location location, PlayerTeleportEvent.TeleportCause cause) {
         return KPlugin.getFoliaLib().getScheduler().teleportAsync(entity, location, cause);

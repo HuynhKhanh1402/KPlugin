@@ -1,6 +1,11 @@
 package dev.khanh.plugin.kplugin.gui;
 
-import dev.khanh.plugin.kplugin.gui.button.GUIButton;
+import dev.khanh.plugin.kplugin.gui.context.ClickContext;
+import dev.khanh.plugin.kplugin.gui.holder.GUIHolder;
+import dev.khanh.plugin.kplugin.gui.item.ItemBuilder;
+import dev.khanh.plugin.kplugin.gui.slot.MultiSlotHandle;
+import dev.khanh.plugin.kplugin.gui.slot.SlotHandle;
+import dev.khanh.plugin.kplugin.gui.slot.SlotRangeHandle;
 import dev.khanh.plugin.kplugin.util.ColorUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -9,142 +14,369 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.function.BiConsumer;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
- * Abstract base class for all GUI implementations.
+ * Core GUI class for creating interactive inventory menus.
  * <p>
- * This class provides the foundation for creating interactive inventory-based GUIs
- * in Minecraft. It handles inventory creation, item placement, click handling,
- * and security features to prevent item duplication exploits.
+ * Use {@link #builder(int)} to create new GUI instances. Access slots via
+ * {@link #slot(int)}, {@link #slotRange(int, int)}, or {@link #slots(int...)}.
  * </p>
- * 
- * <p>
- * GUI validation is performed using {@link GUIHolder} which tracks the GUIManager UUID
- * and GUI instance UUID. This approach prevents exploits from plugin reloads and
- * is more efficient than item-based PDC validation.
- * </p>
- * 
- * <h3>Usage Patterns</h3>
- * 
- * <p><strong>Extending GUI:</strong></p>
- * <pre>{@code
- * public class MyCustomGUI extends GUI {
- *     public MyCustomGUI() {
- *         super(GUIType.CHEST_3_ROWS, "&6&lMy Custom Menu");
- *     }
- *     
- *     {@literal @}Override
- *     protected void setup(@NotNull Player player) {
- *         setItem(13, new ItemStack(Material.DIAMOND));
- *         setButton(22, new GUIButton(
- *             new ItemStack(Material.EMERALD),
- *             p -> p.sendMessage("Clicked!")
- *         ));
- *     }
- * }
- * 
- * // Usage:
- * new MyCustomGUI().open(player);
- * }</pre>
- * 
- * <p><strong>Using SimpleGUI directly:</strong></p>
- * <pre>{@code
- * SimpleGUI gui = new SimpleGUI(GUIType.CHEST_3_ROWS, "&6&lMy Menu");
- * gui.setItem(0, new ItemStack(Material.DIAMOND));
- * gui.open(player);
- * }</pre>
- * 
- * <p><strong>Using GUIBuilder:</strong></p>
- * <pre>{@code
- * GUI gui = new GUIBuilder(GUIType.CHEST_3_ROWS, "&6&lMy Menu")
- *     .setItem(0, new ItemStack(Material.DIAMOND))
- *     .setButton(4, myButton)
- *     .setViewOnly(true)
- *     .build();
- * gui.open(player);
- * }</pre>
  *
- * @since 3.1.0
- * @author KhanhHuynh
+ * @see GUIBuilder
+ * @see SlotHandle
  */
-public abstract class GUI {
+public class GUI {
+    
+    // ==================== Core Fields ====================
     
     protected final UUID guiId;
-    protected final GUIType type;
+    protected final int rows;
+    protected final int size;
     protected final String title;
-    protected final Map<Integer, GUIButton> buttons;
-    protected final Map<Integer, Consumer<Player>> clickHandlers;
     
     protected GUIHolder holder;
     protected Inventory inventory;
-    protected boolean viewOnly;
     protected boolean initialized;
+    protected boolean viewOnly;
     
-    // Global click handler
-    private BiConsumer<Player, Integer> globalClickHandler;
-    // Close handler
-    private Consumer<Player> closeHandler;
+    // ==================== Slot Data ====================
+    
+    /** Click handlers per slot */
+    protected final Map<Integer, Consumer<ClickContext>> clickHandlers;
+    
+    /** Disabled slot messages (slot -> message) */
+    protected final Map<Integer, String> disabledSlots;
+    
+    /** Per-slot metadata storage */
+    protected final Map<Integer, Map<String, Object>> slotMeta;
+    
+    // ==================== Global Handlers ====================
+    
+    /** Global click handler for all slots */
+    protected Consumer<ClickContext> globalClickHandler;
+    
+    /** Close handler */
+    protected Consumer<Player> closeHandler;
+    
+    /** Open handler */
+    protected Consumer<Player> openHandler;
+    
+    // ==================== GUI Metadata ====================
+    
+    /** GUI-wide metadata storage */
+    protected final Map<String, Object> guiMeta;
+    
+    // ==================== Constructors ====================
     
     /**
-     * Creates a new GUI with the specified type and title.
-     * <p>
-     * The inventory is created lazily when {@link #open(Player)} is called.
-     * This allows for proper setup before the inventory is shown.
-     * </p>
+     * Creates a new GUI.
      *
-     * @param type the inventory type
-     * @param title the display title (supports color codes with &amp;)
+     * @param rows the number of rows (1-6)
+     * @param title the title (supports &amp; color codes)
      */
-    protected GUI(@NotNull GUIType type, @NotNull String title) {
-        this.guiId = UUID.randomUUID();
-        this.type = type;
-        this.title = ColorUtil.colorize(title);
-        this.buttons = new HashMap<>();
-        this.clickHandlers = new HashMap<>();
-        this.viewOnly = true;
-        this.initialized = false;
-    }
-    
-    /**
-     * Initializes the inventory. Called once before first open.
-     */
-    protected void initializeInventory() {
-        if (initialized) {
-            return;
+    protected GUI(int rows, @NotNull String title) {
+        if (rows < 1 || rows > 6) {
+            throw new IllegalArgumentException("Rows must be between 1 and 6, got: " + rows);
         }
         
-        // Create holder with GUIManager UUID
-        UUID managerUUID = GUIManager.getInstance().getManagerUUID();
-        this.holder = new GUIHolder(managerUUID, guiId, this);
+        this.guiId = UUID.randomUUID();
+        this.rows = rows;
+        this.size = rows * 9;
+        this.title = ColorUtil.colorize(title);
+        this.viewOnly = true;
+        this.initialized = false;
         
-        // Create inventory with holder
-        this.inventory = Bukkit.createInventory(holder, type.getSize(), title);
-        holder.setInventory(inventory);
-        
-        initialized = true;
+        this.clickHandlers = new HashMap<>();
+        this.disabledSlots = new HashMap<>();
+        this.slotMeta = new HashMap<>();
+        this.guiMeta = new HashMap<>();
     }
     
+    // ==================== Static Factory Methods ====================
+    
     /**
-     * Called to set up the GUI contents before opening.
-     * <p>
-     * Override this method to populate the GUI with items and buttons.
-     * This is called once per {@link #open(Player)} call, allowing for
-     * player-specific content.
-     * </p>
+     * Creates a new GUIBuilder.
      *
-     * @param player the player the GUI is being opened for
+     * @param rows the number of rows (1-6)
+     * @return a new GUIBuilder
      */
-    protected void setup(@NotNull Player player) {
-        // Override in subclasses to add items/buttons
+    @NotNull
+    public static GUIBuilder builder(int rows) {
+        return new GUIBuilder(rows);
     }
     
     /**
-     * Gets the unique identifier for this GUI instance.
+     * Creates a new GUIBuilder by size.
+     *
+     * @param size the inventory size (9, 18, 27, 36, 45, or 54)
+     * @return a new GUIBuilder
+     */
+    @NotNull
+    public static GUIBuilder builderBySize(int size) {
+        if (size % 9 != 0 || size < 9 || size > 54) {
+            throw new IllegalArgumentException("Size must be 9, 18, 27, 36, 45, or 54, got: " + size);
+        }
+        return new GUIBuilder(size / 9);
+    }
+    
+    /**
+     * Creates a GUI directly without builder.
+     *
+     * @param rows the number of rows (1-6)
+     * @param title the title
+     * @return a new GUI
+     */
+    @NotNull
+    public static GUI create(int rows, @NotNull String title) {
+        return new GUI(rows, title);
+    }
+    
+    // ==================== Slot Access Methods ====================
+    
+    /**
+     * Gets a handle for a slot.
+     *
+     * @param slot the slot index
+     * @return a SlotHandle
+     */
+    @NotNull
+    public SlotHandle slot(int slot) {
+        validateSlot(slot);
+        return new SlotHandle(this, slot);
+    }
+    
+    /**
+     * Gets a handle for a range of slots (inclusive).
+     *
+     * @param start the start slot
+     * @param end the end slot
+     * @return a SlotRangeHandle
+     */
+    @NotNull
+    public SlotRangeHandle slotRange(int start, int end) {
+        validateSlot(start);
+        validateSlot(end);
+        return new SlotRangeHandle(this, start, end);
+    }
+    
+    /**
+     * Gets a handle for multiple slots.
+     *
+     * @param indices the slot indices
+     * @return a MultiSlotHandle
+     */
+    @NotNull
+    public MultiSlotHandle slots(int... indices) {
+        for (int slot : indices) {
+            validateSlot(slot);
+        }
+        return new MultiSlotHandle(this, indices);
+    }
+    
+    /**
+     * Gets a handle for a row.
+     *
+     * @param row the row number (0-based)
+     * @return a SlotRangeHandle
+     */
+    @NotNull
+    public SlotRangeHandle row(int row) {
+        if (row < 0 || row >= rows) {
+            throw new IllegalArgumentException("Row " + row + " is out of bounds (0-" + (rows - 1) + ")");
+        }
+        return slotRange(row * 9, row * 9 + 8);
+    }
+    
+    /**
+     * Gets a handle for a column.
+     *
+     * @param column the column number (0-8)
+     * @return a MultiSlotHandle
+     */
+    @NotNull
+    public MultiSlotHandle column(int column) {
+        if (column < 0 || column > 8) {
+            throw new IllegalArgumentException("Column " + column + " is out of bounds (0-8)");
+        }
+        int[] columnSlots = new int[rows];
+        for (int row = 0; row < rows; row++) {
+            columnSlots[row] = row * 9 + column;
+        }
+        return new MultiSlotHandle(this, columnSlots);
+    }
+    
+    // ==================== Internal Slot Operations ====================
+    
+    /**
+     * Sets an item in a slot. Internal use only.
+     *
+     * @param slot the slot index
+     * @param item the item
+     */
+    public void setSlotItem(int slot, @Nullable ItemStack item) {
+        ensureInitialized();
+        if (item == null) {
+            inventory.setItem(slot, null);
+        } else {
+            inventory.setItem(slot, item.clone());
+        }
+    }
+    
+    /**
+     * Gets the item in a slot. Internal use only.
+     *
+     * @param slot the slot index
+     * @return the item, or null
+     */
+    @Nullable
+    public ItemStack getSlotItem(int slot) {
+        ensureInitialized();
+        return inventory.getItem(slot);
+    }
+    
+    /**
+     * Sets a click handler for a slot. Internal use only.
+     *
+     * @param slot the slot index
+     * @param handler the click handler (null to remove)
+     */
+    public void setSlotClickHandler(int slot, @Nullable Consumer<ClickContext> handler) {
+        if (handler == null) {
+            clickHandlers.remove(slot);
+        } else {
+            clickHandlers.put(slot, handler);
+        }
+    }
+    
+    /**
+     * Gets the click handler for a slot.
+     *
+     * @param slot the slot index
+     * @return the click handler, or null if none
+     */
+    @Nullable
+    Consumer<ClickContext> getSlotClickHandler(int slot) {
+        return clickHandlers.get(slot);
+    }
+    
+    /**
+     * Disables a slot with a message. Internal use only.
+     *
+     * @param slot the slot index
+     * @param message the message shown when clicked
+     */
+    public void setSlotDisabled(int slot, @NotNull String message) {
+        disabledSlots.put(slot, ColorUtil.colorize(message));
+    }
+    
+    /**
+     * Enables a slot. Internal use only.
+     *
+     * @param slot the slot index
+     */
+    public void setSlotEnabled(int slot) {
+        disabledSlots.remove(slot);
+    }
+    
+    /**
+     * Checks if a slot is disabled. Internal use only.
+     *
+     * @param slot the slot index
+     * @return true if disabled
+     */
+    public boolean isSlotDisabled(int slot) {
+        return disabledSlots.containsKey(slot);
+    }
+    
+    /**
+     * Gets the disabled message for a slot.
+     *
+     * @param slot the slot index
+     * @return the message, or null if not disabled
+     */
+    @Nullable
+    String getDisabledMessage(int slot) {
+        return disabledSlots.get(slot);
+    }
+    
+    /**
+     * Sets slot metadata. Internal use only.
+     *
+     * @param slot the slot index
+     * @param key the key
+     * @param value the value
+     */
+    public void setSlotMeta(int slot, @NotNull String key, @Nullable Object value) {
+        Map<String, Object> meta = slotMeta.computeIfAbsent(slot, k -> new HashMap<>());
+        if (value == null) {
+            meta.remove(key);
+        } else {
+            meta.put(key, value);
+        }
+    }
+    
+    /**
+     * Gets slot metadata. Internal use only.
+     *
+     * @param slot the slot index
+     * @param key the key
+     * @param <T> the type
+     * @return the value, or null
+     */
+    @SuppressWarnings("unchecked")
+    @Nullable
+    public <T> T getSlotMeta(int slot, @NotNull String key) {
+        Map<String, Object> meta = slotMeta.get(slot);
+        if (meta == null) {
+            return null;
+        }
+        return (T) meta.get(key);
+    }
+    
+    // ==================== Global Handlers ====================
+    
+    /**
+     * Sets a global click handler called for all slot clicks.
+     *
+     * @param handler the handler
+     * @return this GUI
+     */
+    @NotNull
+    public GUI onGlobalClick(@Nullable Consumer<ClickContext> handler) {
+        this.globalClickHandler = handler;
+        return this;
+    }
+    
+    /**
+     * Sets a handler called when the GUI is closed.
+     *
+     * @param handler the handler
+     * @return this GUI
+     */
+    @NotNull
+    public GUI onClose(@Nullable Consumer<Player> handler) {
+        this.closeHandler = handler;
+        return this;
+    }
+    
+    /**
+     * Sets a handler called when the GUI is opened.
+     *
+     * @param handler the handler
+     * @return this GUI
+     */
+    @NotNull
+    public GUI onOpen(@Nullable Consumer<Player> handler) {
+        this.openHandler = handler;
+        return this;
+    }
+    
+    // ==================== GUI Properties ====================
+    
+    /**
+     * Gets the GUI unique identifier.
      *
      * @return the GUI ID
      */
@@ -154,22 +386,21 @@ public abstract class GUI {
     }
     
     /**
-     * Gets the GUI type.
+     * Gets the number of rows.
      *
-     * @return the GUI type
+     * @return the row count
      */
-    @NotNull
-    public GUIType getType() {
-        return type;
+    public int getRows() {
+        return rows;
     }
     
     /**
-     * Gets the size of this GUI in slots.
+     * Gets the total number of slots.
      *
-     * @return the number of slots
+     * @return the slot count
      */
     public int getSize() {
-        return type.getSize();
+        return size;
     }
     
     /**
@@ -183,243 +414,287 @@ public abstract class GUI {
     }
     
     /**
-     * Gets whether this GUI is view-only (prevents item removal/placement).
+     * Gets whether this GUI is view-only.
      *
-     * @return true if view-only, false if interactive
+     * @return true if view-only
      */
     public boolean isViewOnly() {
         return viewOnly;
     }
     
     /**
-     * Sets whether this GUI is view-only.
+     * Sets whether the GUI is view-only.
      *
-     * @param viewOnly true to make view-only, false to allow interaction
+     * @param viewOnly true for view-only
+     * @return this GUI
      */
-    public void setViewOnly(boolean viewOnly) {
+    @NotNull
+    public GUI setViewOnly(boolean viewOnly) {
         this.viewOnly = viewOnly;
+        return this;
+    }
+    
+    // ==================== GUI Metadata ====================
+    
+    /**
+     * Sets GUI metadata.
+     *
+     * @param key the key
+     * @param value the value
+     * @return this GUI
+     */
+    @NotNull
+    public GUI setMeta(@NotNull String key, @Nullable Object value) {
+        if (value == null) {
+            guiMeta.remove(key);
+        } else {
+            guiMeta.put(key, value);
+        }
+        return this;
     }
     
     /**
-     * Sets a global click handler that is called for any slot click.
+     * Gets GUI metadata.
      *
-     * @param handler the handler that receives player and slot
+     * @param key the key
+     * @param <T> the type
+     * @return the value, or null
      */
-    public void setGlobalClickHandler(@Nullable BiConsumer<Player, Integer> handler) {
-        this.globalClickHandler = handler;
-    }
-    
-    /**
-     * Sets a close handler that is called when the GUI is closed.
-     *
-     * @param handler the close handler
-     */
-    public void setCloseHandler(@Nullable Consumer<Player> handler) {
-        this.closeHandler = handler;
-    }
-    
-    /**
-     * Gets the global click handler.
-     *
-     * @return the global click handler, or null if none set
-     */
+    @SuppressWarnings("unchecked")
     @Nullable
-    public BiConsumer<Player, Integer> getGlobalClickHandler() {
-        return globalClickHandler;
+    public <T> T getMeta(@NotNull String key) {
+        return (T) guiMeta.get(key);
     }
     
     /**
-     * Gets the close handler.
+     * Gets GUI metadata with default value.
      *
-     * @return the close handler, or null if none set
+     * @param key the key
+     * @param defaultValue the default
+     * @param <T> the type
+     * @return the value, or default if not found
      */
-    @Nullable
-    public Consumer<Player> getCloseHandler() {
-        return closeHandler;
+    @SuppressWarnings("unchecked")
+    @NotNull
+    public <T> T getMeta(@NotNull String key, @NotNull T defaultValue) {
+        Object value = guiMeta.get(key);
+        return value != null ? (T) value : defaultValue;
     }
     
+    // ==================== Helper Methods ====================
+    
     /**
-     * Sets an item in the specified slot.
-     * <p>
-     * The item is cloned to prevent shared references.
-     * Security validation is handled via {@link GUIHolder}.
-     * </p>
+     * Fills the border with an item.
      *
-     * @param slot the slot index (0-based)
-     * @param item the item to set (null to clear)
+     * @param item the border item
+     * @return this GUI
      */
-    public void setItem(int slot, @Nullable ItemStack item) {
+    @NotNull
+    public GUI fillBorder(@NotNull ItemStack item) {
         ensureInitialized();
         
-        if (slot < 0 || slot >= type.getSize()) {
-            throw new IllegalArgumentException("Slot " + slot + " is out of bounds for " + type);
-        }
-        
-        if (item == null) {
-            inventory.setItem(slot, null);
-            return;
-        }
-        
-        // Clone to prevent shared references
-        ItemStack cloned = item.clone();
-        
-        inventory.setItem(slot, cloned);
-    }
-    
-    /**
-     * Gets the item at the specified slot.
-     *
-     * @param slot the slot index
-     * @return the item, or null if the slot is empty
-     */
-    @Nullable
-    public ItemStack getItem(int slot) {
-        ensureInitialized();
-        return inventory.getItem(slot);
-    }
-    
-    /**
-     * Sets a button in the specified slot.
-     *
-     * @param slot the slot index
-     * @param button the button to set
-     */
-    public void setButton(int slot, @NotNull GUIButton button) {
-        buttons.put(slot, button);
-        setItem(slot, button.getItem());
-    }
-    
-    /**
-     * Removes a button from the specified slot.
-     *
-     * @param slot the slot index
-     */
-    public void removeButton(int slot) {
-        buttons.remove(slot);
-        clickHandlers.remove(slot);
-        setItem(slot, null);
-    }
-    
-    /**
-     * Sets a click handler for the specified slot.
-     *
-     * @param slot the slot index
-     * @param handler the click handler
-     */
-    public void setClickHandler(int slot, @NotNull Consumer<Player> handler) {
-        clickHandlers.put(slot, handler);
-    }
-    
-    /**
-     * Gets the button at the specified slot.
-     *
-     * @param slot the slot index
-     * @return the button, or null if none exists
-     */
-    @Nullable
-    public GUIButton getButton(int slot) {
-        return buttons.get(slot);
-    }
-    
-    /**
-     * Gets the click handler for the specified slot.
-     *
-     * @param slot the slot index
-     * @return the click handler, or null if none exists
-     */
-    @Nullable
-    public Consumer<Player> getClickHandler(int slot) {
-        return clickHandlers.get(slot);
-    }
-    
-    /**
-     * Clears all items and buttons from the GUI.
-     */
-    public void clear() {
-        ensureInitialized();
-        inventory.clear();
-        buttons.clear();
-        clickHandlers.clear();
-    }
-    
-    /**
-     * Clears only the content slots (not buttons or static items).
-     *
-     * @param slots the slots to clear
-     */
-    public void clearSlots(@NotNull int... slots) {
-        ensureInitialized();
-        for (int slot : slots) {
-            if (slot >= 0 && slot < type.getSize()) {
-                inventory.setItem(slot, null);
-                buttons.remove(slot);
-                clickHandlers.remove(slot);
-            }
-        }
-    }
-    
-    /**
-     * Refreshes the GUI display by re-rendering all buttons.
-     */
-    public void refresh() {
-        ensureInitialized();
-        for (Map.Entry<Integer, GUIButton> entry : buttons.entrySet()) {
-            setItem(entry.getKey(), entry.getValue().getItem());
-        }
-    }
-    
-    /**
-     * Fills empty slots with the specified item.
-     *
-     * @param filler the item to fill with
-     */
-    public void fillEmpty(@NotNull ItemStack filler) {
-        ensureInitialized();
-        for (int i = 0; i < type.getSize(); i++) {
-            if (inventory.getItem(i) == null) {
-                setItem(i, filler);
-            }
-        }
-    }
-    
-    /**
-     * Fills the border slots with the specified item.
-     *
-     * @param borderItem the border item
-     */
-    public void fillBorder(@NotNull ItemStack borderItem) {
-        ensureInitialized();
-        int rows = type.getRows();
-        int size = type.getSize();
-        
-        // Top and bottom rows
+        // Top row
         for (int i = 0; i < 9; i++) {
-            setItem(i, borderItem);
-            if (rows > 1) {
-                setItem(size - 9 + i, borderItem);
+            setSlotItem(i, item);
+        }
+        
+        // Bottom row
+        if (rows > 1) {
+            for (int i = 0; i < 9; i++) {
+                setSlotItem(size - 9 + i, item);
             }
         }
         
         // Side columns
         if (rows > 2) {
             for (int row = 1; row < rows - 1; row++) {
-                setItem(row * 9, borderItem);
-                setItem(row * 9 + 8, borderItem);
+                setSlotItem(row * 9, item);
+                setSlotItem(row * 9 + 8, item);
             }
+        }
+        
+        return this;
+    }
+    
+    /**
+     * Fills the border using an ItemBuilder.
+     *
+     * @param builder the item builder
+     * @return this GUI for chaining
+     */
+    @NotNull
+    public GUI fillBorder(@NotNull ItemBuilder builder) {
+        return fillBorder(builder.build());
+    }
+    
+    /**
+     * Fills empty slots with an item.
+     *
+     * @param item the filler item
+     * @return this GUI
+     */
+    @NotNull
+    public GUI fillEmpty(@NotNull ItemStack item) {
+        ensureInitialized();
+        for (int i = 0; i < size; i++) {
+            ItemStack current = inventory.getItem(i);
+            if (current == null || current.getType().isAir()) {
+                setSlotItem(i, item);
+            }
+        }
+        return this;
+    }
+    
+    /**
+     * Fills all empty slots using an ItemBuilder.
+     *
+     * @param builder the item builder
+     * @return this GUI for chaining
+     */
+    @NotNull
+    public GUI fillEmpty(@NotNull ItemBuilder builder) {
+        return fillEmpty(builder.build());
+    }
+    
+    /**
+     * Clears all items and handlers.
+     *
+     * @return this GUI
+     */
+    @NotNull
+    public GUI clear() {
+        ensureInitialized();
+        inventory.clear();
+        clickHandlers.clear();
+        disabledSlots.clear();
+        slotMeta.clear();
+        return this;
+    }
+    
+    /**
+     * Refreshes the GUI for all viewers.
+     *
+     * @return this GUI
+     */
+    @NotNull
+    public GUI refresh() {
+        if (initialized && inventory != null) {
+            for (org.bukkit.entity.HumanEntity viewer : inventory.getViewers()) {
+                if (viewer instanceof Player) {
+                    ((Player) viewer).updateInventory();
+                }
+            }
+        }
+        return this;
+    }
+    
+    // ==================== Inventory Access ====================
+    
+    /**
+     * Gets the Bukkit inventory.
+     *
+     * @return the inventory
+     */
+    @NotNull
+    public Inventory getInventory() {
+        ensureInitialized();
+        return inventory;
+    }
+    
+    /**
+     * Gets the GUI holder.
+     *
+     * @return the holder
+     */
+    @NotNull
+    public GUIHolder getHolder() {
+        ensureInitialized();
+        return holder;
+    }
+    
+    /**
+     * Checks if this GUI has been initialized.
+     *
+     * @return true if initialized
+     */
+    public boolean isInitialized() {
+        return initialized;
+    }
+    
+    // ==================== Open/Close ====================
+    
+    /**
+     * Opens this GUI for a player.
+     *
+     * @param player the player
+     */
+    public void open(@NotNull Player player) {
+        ensureInitialized();
+        GUIManager.getInstance().openGUI(player, this);
+    }
+    
+    /**
+     * Closes this GUI for a player.
+     *
+     * @param player the player
+     */
+    public void close(@NotNull Player player) {
+        player.closeInventory();
+    }
+    
+    // ==================== Event Callbacks ====================
+    
+    /**
+     * Handles a click event. Internal use only.
+     *
+     * @param context the click context
+     */
+    public void handleClick(@NotNull ClickContext context) {
+        int slot = context.slot();
+        
+        // Check if slot is disabled
+        String disabledMsg = disabledSlots.get(slot);
+        if (disabledMsg != null) {
+            context.cancel();
+            context.player().sendMessage(disabledMsg);
+            return;
+        }
+        
+        // Execute slot-specific handler
+        Consumer<ClickContext> handler = clickHandlers.get(slot);
+        if (handler != null) {
+            handler.accept(context);
+        }
+        
+        // Execute global handler
+        if (globalClickHandler != null) {
+            globalClickHandler.accept(context);
         }
     }
     
     /**
-     * Fills the specified slots with an item.
+     * Called when this GUI is opened.
      *
-     * @param slots the slots to fill
-     * @param item the item to place
+     * @param player the player who opened the GUI
      */
-    public void fillSlots(@NotNull int[] slots, @NotNull ItemStack item) {
-        for (int slot : slots) {
-            setItem(slot, item);
+    public void handleOpen(@NotNull Player player) {
+        if (openHandler != null) {
+            openHandler.accept(player);
         }
     }
+    
+    /**
+     * Called when this GUI is closed.
+     *
+     * @param player the player who closed the GUI
+     */
+    public void handleClose(@NotNull Player player) {
+        if (closeHandler != null) {
+            closeHandler.accept(player);
+        }
+    }
+    
+    // ==================== Internal Methods ====================
     
     /**
      * Ensures the inventory is initialized.
@@ -431,115 +706,32 @@ public abstract class GUI {
     }
     
     /**
-     * Opens this GUI for the specified player.
-     * <p>
-     * This method is Folia-safe and will execute in the correct region.
-     * The {@link #setup(Player)} method is called before opening to populate the GUI.
-     * </p>
-     *
-     * @param player the player to open the GUI for
+     * Initializes the inventory.
      */
-    public void open(@NotNull Player player) {
-        ensureInitialized();
-        setup(player);
-        GUIManager.getInstance().openGUI(player, this);
-    }
-    
-    /**
-     * Closes this GUI for the specified player.
-     *
-     * @param player the player to close the GUI for
-     */
-    public void close(@NotNull Player player) {
-        player.closeInventory();
-    }
-    
-    /**
-     * Called when a player clicks in this GUI.
-     * <p>
-     * Override this method to handle custom click logic.
-     * The default implementation executes button handlers, slot handlers,
-     * and the global click handler in that order.
-     * </p>
-     *
-     * @param player the player who clicked
-     * @param slot the slot that was clicked
-     * @param item the item that was clicked (may be null)
-     */
-    public void onClick(@NotNull Player player, int slot, @Nullable ItemStack item) {
-        // Execute button click handler if exists
-        GUIButton button = buttons.get(slot);
-        if (button != null) {
-            button.onClick(player);
+    protected void initializeInventory() {
+        if (initialized) {
+            return;
         }
         
-        // Execute custom click handler if exists
-        Consumer<Player> handler = clickHandlers.get(slot);
-        if (handler != null) {
-            handler.accept(player);
-        }
+        // Create holder with GUIManager UUID
+        UUID managerUUID = GUIManager.getInstance().getManagerUUID();
+        this.holder = new GUIHolder(managerUUID, guiId, this);
         
-        // Execute global click handler if exists
-        if (globalClickHandler != null) {
-            globalClickHandler.accept(player, slot);
+        // Create inventory
+        this.inventory = Bukkit.createInventory(holder, size, title);
+        holder.setInventory(inventory);
+        
+        initialized = true;
+    }
+    
+    /**
+     * Validates that a slot index is within bounds.
+     *
+     * @param slot the slot index
+     */
+    protected void validateSlot(int slot) {
+        if (slot < 0 || slot >= size) {
+            throw new IllegalArgumentException("Slot " + slot + " is out of bounds (0-" + (size - 1) + ")");
         }
-    }
-    
-    /**
-     * Called when this GUI is opened for a player.
-     * <p>
-     * Override this method to perform custom logic on open.
-     * </p>
-     *
-     * @param player the player who opened the GUI
-     */
-    public void onOpen(@NotNull Player player) {
-        // Override in subclasses
-    }
-    
-    /**
-     * Called when this GUI is closed for a player.
-     * <p>
-     * Override this method to perform custom logic on close.
-     * The default implementation calls the close handler if set.
-     * </p>
-     *
-     * @param player the player who closed the GUI
-     */
-    public void onClose(@NotNull Player player) {
-        if (closeHandler != null) {
-            closeHandler.accept(player);
-        }
-    }
-    
-    /**
-     * Gets the GUI holder.
-     *
-     * @return the GUI holder
-     */
-    @NotNull
-    public GUIHolder getHolder() {
-        ensureInitialized();
-        return holder;
-    }
-    
-    /**
-     * Gets the inventory.
-     *
-     * @return the inventory
-     */
-    @NotNull
-    public Inventory getInventory() {
-        ensureInitialized();
-        return inventory;
-    }
-    
-    /**
-     * Checks if this GUI has been initialized.
-     *
-     * @return true if initialized
-     */
-    public boolean isInitialized() {
-        return initialized;
     }
 }

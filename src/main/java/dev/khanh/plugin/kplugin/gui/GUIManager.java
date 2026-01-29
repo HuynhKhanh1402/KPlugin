@@ -1,6 +1,8 @@
 package dev.khanh.plugin.kplugin.gui;
 
 import dev.khanh.plugin.kplugin.KPlugin;
+import dev.khanh.plugin.kplugin.gui.context.ClickContext;
+import dev.khanh.plugin.kplugin.gui.holder.GUIHolder;
 import dev.khanh.plugin.kplugin.instance.InstanceManager;
 import dev.khanh.plugin.kplugin.util.LoggerUtil;
 import dev.khanh.plugin.kplugin.util.TaskUtil;
@@ -21,31 +23,14 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Central manager for all GUI operations.
+ * Central manager for GUI operations and event handling.
  * <p>
- * This singleton class handles GUI lifecycle management, player tracking,
- * event handling, and security enforcement. It is automatically registered
- * in the {@link InstanceManager} for global access.
+ * Singleton that manages GUI lifecycle, player tracking, and security validation.
+ * Automatically registered in {@link InstanceManager}.
  * </p>
- * 
- * <p>
- * The GUIManager provides:
- * <ul>
- *   <li>Folia-safe GUI opening and closing</li>
- *   <li>Player-to-GUI mapping for event routing</li>
- *   <li>Security validation to prevent item duplication</li>
- *   <li>Automatic cleanup on player disconnect</li>
- * </ul>
- * </p>
- * 
- * <p><strong>Initialization:</strong></p>
- * <pre>{@code
- * // In your plugin's enable() method:
- * new GUIManager(this);
- * }</pre>
  *
- * @since 3.1.0
- * @author KhanhHuynh
+ * @see GUI
+ * @see GUIHolder
  */
 public class GUIManager implements Listener {
     
@@ -55,11 +40,6 @@ public class GUIManager implements Listener {
     
     /**
      * Creates and initializes the GUI manager.
-     * <p>
-     * This constructor registers the manager in the {@link InstanceManager}
-     * and registers event listeners with Bukkit.
-     * A unique UUID is generated for this manager instance to detect plugin reloads.
-     * </p>
      *
      * @param plugin the plugin instance
      */
@@ -78,10 +58,9 @@ public class GUIManager implements Listener {
     }
     
     /**
-     * Gets the GUIManager instance from the InstanceManager.
+     * Gets the GUIManager instance.
      *
-     * @return the GUIManager instance
-     * @throws IllegalStateException if GUIManager has not been initialized
+     * @return the GUIManager
      */
     @NotNull
     public static GUIManager getInstance() {
@@ -90,10 +69,6 @@ public class GUIManager implements Listener {
     
     /**
      * Gets the manager UUID.
-     * <p>
-     * This UUID is unique per GUIManager instance and changes when the plugin is reloaded.
-     * It is used to validate GUI holders and detect stale GUIs from previous plugin instances.
-     * </p>
      *
      * @return the manager UUID
      */
@@ -103,44 +78,39 @@ public class GUIManager implements Listener {
     }
     
     /**
-     * Opens a GUI for the specified player.
-     * <p>
-     * This method is Folia-safe and will execute the open operation
-     * in the correct region context for the player.
-     * </p>
+     * Opens a GUI for a player.
      *
-     * @param player the player to open the GUI for
-     * @param gui the GUI to open
+     * @param player the player
+     * @param gui the GUI
      */
     public void openGUI(@NotNull Player player, @NotNull GUI gui) {
-        // Use Folia-safe entity task or sync task
         TaskUtil.runAtEntity(player, () -> {
             openGUIs.put(player.getUniqueId(), gui);
             player.openInventory(gui.getInventory());
-            gui.onOpen(player);
+            gui.handleOpen(player);
         });
     }
     
     /**
-     * Closes the currently open GUI for the specified player.
+     * Closes the open GUI for a player.
      *
-     * @param player the player to close the GUI for
+     * @param player the player
      */
     public void closeGUI(@NotNull Player player) {
         TaskUtil.runAtEntity(player, () -> {
             GUI gui = openGUIs.remove(player.getUniqueId());
             if (gui != null) {
                 player.closeInventory();
-                gui.onClose(player);
+                gui.handleClose(player);
             }
         });
     }
     
     /**
-     * Gets the GUI currently open for the specified player.
+     * Gets the GUI open for a player.
      *
      * @param player the player
-     * @return the open GUI, or null if none is open
+     * @return the GUI, or null
      */
     @Nullable
     public GUI getOpenGUI(@NotNull Player player) {
@@ -148,15 +118,10 @@ public class GUIManager implements Listener {
     }
     
     /**
-     * Gets the GUI associated with the specified inventory.
-     * <p>
-     * Validates that the GUI belongs to the current GUIManager instance.
-     * If the holder is from a previous plugin instance (different UUID),
-     * returns null to trigger proper cleanup.
-     * </p>
+     * Gets the GUI for an inventory.
      *
      * @param inventory the inventory
-     * @return the GUI, or null if the inventory is not a GUI or is stale
+     * @return the GUI, or null if not a GUI or stale
      */
     @Nullable
     public GUI getGUI(@NotNull Inventory inventory) {
@@ -165,8 +130,7 @@ public class GUIManager implements Listener {
             
             // Validate holder belongs to current manager instance
             if (!holder.isValid(managerUUID)) {
-                LoggerUtil.warning("Detected stale GUI from previous plugin instance (holder UUID: " 
-                    + holder.getManagerUUID() + ", current: " + managerUUID + ")");
+                LoggerUtil.warning("Detected stale GUI from previous plugin instance");
                 return null;
             }
             
@@ -176,23 +140,60 @@ public class GUIManager implements Listener {
     }
     
     /**
-     * Checks if the specified player has a GUI open.
+     * Checks if a player has a GUI open.
      *
      * @param player the player
-     * @return true if the player has a GUI open
+     * @return true if GUI is open
      */
     public boolean hasGUIOpen(@NotNull Player player) {
         return openGUIs.containsKey(player.getUniqueId());
     }
     
     /**
-     * Clears all tracked GUIs.
-     * <p>
-     * This is typically called on plugin disable.
-     * </p>
+     * Clears all tracked GUIs without closing them.
      */
     public void clearAll() {
         openGUIs.clear();
+    }
+    
+    /**
+     * Closes all open GUIs for all players.
+     */
+    public void closeAll() {
+        // Create a copy to avoid ConcurrentModificationException
+        Map<UUID, GUI> guisCopy = new ConcurrentHashMap<>(openGUIs);
+        
+        for (Map.Entry<UUID, GUI> entry : guisCopy.entrySet()) {
+            UUID playerId = entry.getKey();
+            GUI gui = entry.getValue();
+            
+            Player player = Bukkit.getPlayer(playerId);
+            if (player != null && player.isOnline()) {
+                TaskUtil.runAtEntity(player, () -> {
+                    openGUIs.remove(playerId);
+                    player.closeInventory();
+                    gui.handleClose(player);
+                });
+            } else {
+                // Player is offline, just remove from tracking
+                openGUIs.remove(playerId);
+            }
+        }
+    }
+    
+    /**
+     * Shuts down the manager and cleans up all resources.
+     */
+    public void shutdown() {
+        LoggerUtil.info("Shutting down GUIManager...");
+        
+        // Close all open GUIs
+        closeAll();
+        
+        // Clear all tracking data
+        openGUIs.clear();
+        
+        LoggerUtil.info("GUIManager shutdown complete. Closed all open GUIs.");
     }
     
     // ==================== Event Handlers ====================
@@ -209,15 +210,16 @@ public class GUIManager implements Listener {
         Player player = (Player) event.getWhoClicked();
         GUI gui = getGUI(event.getInventory());
         
-        // Check if GUI is null (either not a GUI or stale from plugin reload)
+        // Check if it's a stale GUI
+        if (gui == null && event.getInventory().getHolder() instanceof GUIHolder) {
+            event.setCancelled(true);
+            player.closeInventory();
+            player.sendMessage("§cThis GUI is no longer valid (plugin was reloaded).");
+            LoggerUtil.info("Closed stale GUI for player " + player.getName());
+            return;
+        }
+        
         if (gui == null) {
-            // Check if it's a stale GUI
-            if (event.getInventory().getHolder() instanceof GUIHolder) {
-                event.setCancelled(true);
-                player.closeInventory();
-                player.sendMessage("§cThis GUI is no longer valid (plugin was reloaded).");
-                LoggerUtil.info("Closed stale GUI for player " + player.getName());
-            }
             return;
         }
         
@@ -226,12 +228,11 @@ public class GUIManager implements Listener {
             event.setCancelled(true);
         }
         
-        // Get clicked slot and item
-        ItemStack clicked = event.getCurrentItem();
+        // Get clicked slot
         int slot = event.getRawSlot();
         
         // Only process clicks inside the GUI inventory
-        if (slot < 0 || slot >= gui.getType().getSize()) {
+        if (slot < 0 || slot >= gui.getSize()) {
             // Allow player inventory clicks only if not view-only
             if (gui.isViewOnly()) {
                 event.setCancelled(true);
@@ -239,8 +240,21 @@ public class GUIManager implements Listener {
             return;
         }
         
-        // Execute click handler
-        gui.onClick(player, slot, clicked);
+        // Get clicked item
+        ItemStack clicked = event.getCurrentItem();
+        
+        // Create click context
+        ClickContext context = new ClickContext(
+            player,
+            gui,
+            slot,
+            clicked,
+            event.getClick(),
+            event
+        );
+        
+        // Route to GUI handler
+        gui.handleClick(context);
     }
     
     /**
@@ -254,7 +268,7 @@ public class GUIManager implements Listener {
         
         GUI gui = getGUI(event.getInventory());
         
-        // Check if it's a stale GUI
+        // Check for stale GUI
         if (gui == null && event.getInventory().getHolder() instanceof GUIHolder) {
             event.setCancelled(true);
             Player player = (Player) event.getWhoClicked();
@@ -267,8 +281,13 @@ public class GUIManager implements Listener {
             return;
         }
         
-        // Cancel all drag operations in GUIs
-        event.setCancelled(true);
+        // Cancel drag if any affected slot is in the GUI
+        for (int slot : event.getRawSlots()) {
+            if (slot < gui.getSize()) {
+                event.setCancelled(true);
+                return;
+            }
+        }
     }
     
     /**
@@ -281,21 +300,15 @@ public class GUIManager implements Listener {
         }
         
         Player player = (Player) event.getPlayer();
-        GUI gui = getGUI(event.getInventory());
+        GUI gui = openGUIs.remove(player.getUniqueId());
         
-        if (gui == null) {
-            return;
+        if (gui != null) {
+            gui.handleClose(player);
         }
-        
-        // Remove from tracking
-        openGUIs.remove(player.getUniqueId());
-        
-        // Call close callback
-        gui.onClose(player);
     }
     
     /**
-     * Handles inventory open events.
+     * Handles inventory open events for tracking.
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInventoryOpen(@NotNull InventoryOpenEvent event) {
@@ -303,21 +316,16 @@ public class GUIManager implements Listener {
             return;
         }
         
-        Player player = (Player) event.getPlayer();
         GUI gui = getGUI(event.getInventory());
-        
-        if (gui == null) {
-            return;
+        if (gui != null) {
+            openGUIs.put(event.getPlayer().getUniqueId(), gui);
         }
-        
-        // Track the open GUI
-        openGUIs.put(player.getUniqueId(), gui);
     }
     
     /**
-     * Cleans up GUIs when a player disconnects.
+     * Cleans up player data on disconnect.
      */
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(@NotNull PlayerQuitEvent event) {
         openGUIs.remove(event.getPlayer().getUniqueId());
     }

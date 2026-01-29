@@ -1,8 +1,6 @@
 package dev.khanh.plugin.kplugin.util;
 
-import dev.khanh.plugin.kplugin.util.LoggerUtil;
 import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -15,12 +13,12 @@ import java.util.Map;
  * Utility class for playing sounds with multi-version compatibility.
  * <p>
  * This utility handles the differences between Minecraft versions by:
+ * </p>
  * <ul>
  *   <li>Attempting to use {@link Sound} enum values (pre-1.9 format)</li>
  *   <li>Falling back to namespaced key strings (1.9+ format)</li>
  *   <li>Providing version-specific sound mappings</li>
  * </ul>
- * </p>
  * 
  * <p><strong>Example usage:</strong></p>
  * <pre>{@code

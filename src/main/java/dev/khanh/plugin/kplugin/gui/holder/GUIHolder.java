@@ -1,5 +1,6 @@
-package dev.khanh.plugin.kplugin.gui;
+package dev.khanh.plugin.kplugin.gui.holder;
 
+import dev.khanh.plugin.kplugin.gui.GUI;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.jetbrains.annotations.NotNull;
@@ -9,21 +10,9 @@ import java.util.UUID;
 /**
  * Custom InventoryHolder for GUI instances.
  * <p>
- * This holder stores metadata about the GUI for validation purposes:
- * <ul>
- *   <li>{@code managerUUID} - UUID scoped to the plugin instance (GUIManager)</li>
- *   <li>{@code guiUUID} - UUID of the specific GUI instance</li>
- * </ul>
+ * Stores manager UUID and GUI UUID for validation.
+ * The manager UUID changes on plugin reload to detect stale GUIs.
  * </p>
- * 
- * <p>
- * The {@code managerUUID} is used to detect plugin reloads. If a player tries to
- * interact with a GUI from a previous plugin instance (different managerUUID),
- * the event is cancelled and the GUI is closed to prevent exploits.
- * </p>
- *
- * @since 3.1.0
- * @author KhanhHuynh
  */
 public class GUIHolder implements InventoryHolder {
     
@@ -33,11 +22,11 @@ public class GUIHolder implements InventoryHolder {
     private Inventory inventory;
     
     /**
-     * Creates a new GUI holder.
+     * Creates a GUI holder.
      *
-     * @param managerUUID the UUID of the GUIManager instance
-     * @param guiUUID the UUID of the GUI instance
-     * @param gui the GUI instance
+     * @param managerUUID the manager UUID
+     * @param guiUUID the GUI UUID
+     * @param gui the GUI
      */
     public GUIHolder(@NotNull UUID managerUUID, @NotNull UUID guiUUID, @NotNull GUI gui) {
         this.managerUUID = managerUUID;
@@ -46,10 +35,7 @@ public class GUIHolder implements InventoryHolder {
     }
     
     /**
-     * Gets the GUIManager UUID.
-     * <p>
-     * This UUID is unique per plugin instance and changes when the plugin is reloaded.
-     * </p>
+     * Gets the manager UUID.
      *
      * @return the manager UUID
      */
@@ -59,7 +45,7 @@ public class GUIHolder implements InventoryHolder {
     }
     
     /**
-     * Gets the GUI instance UUID.
+     * Gets the GUI UUID.
      *
      * @return the GUI UUID
      */
@@ -79,10 +65,7 @@ public class GUIHolder implements InventoryHolder {
     }
     
     /**
-     * Sets the inventory reference.
-     * <p>
-     * This is called after inventory creation to establish the circular reference.
-     * </p>
+     * Sets the inventory reference. Internal use only.
      *
      * @param inventory the inventory
      */
