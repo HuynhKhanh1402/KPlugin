@@ -5,7 +5,8 @@ import dev.khanh.plugin.kplugin.gui.GUIManager;
 import dev.khanh.plugin.kplugin.gui.GUIType;
 import dev.khanh.plugin.kplugin.gui.button.ConfigItem;
 import dev.khanh.plugin.kplugin.gui.button.GUIButton;
-import dev.khanh.plugin.kplugin.util.GUIUtil;
+import dev.khanh.plugin.kplugin.gui.placeholder.PlaceholderContext;
+import dev.khanh.plugin.kplugin.gui.placeholder.PlaceholderResolver;
 import dev.khanh.plugin.kplugin.util.TaskUtil;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -32,6 +33,12 @@ import java.util.function.Function;
  * </p>
  * 
  * <p>
+ * <strong>Important:</strong> Content slots must be provided explicitly via the
+ * constructor or {@link #setContentSlots(int[])}. This gives full control over
+ * where pagination items are placed.
+ * </p>
+ * 
+ * <p>
  * In lazy mode, when loading a new page:
  * <ol>
  *   <li>The current inventory is closed</li>
@@ -42,90 +49,220 @@ import java.util.function.Function;
  * a smoother experience.
  * </p>
  * 
- * <p><strong>Eager mode example:</strong></p>
+ * <h3>Eager Mode Example</h3>
  * <pre>{@code
- * List<ConfigItem> allItems = loadItemsFromConfig();
- * PaginatedGUI gui = new PaginatedGUI(GUIType.CHEST_6_ROWS, "&6Item Shop");
- * gui.setItemsPerPage(28);
- * gui.setItems(allItems, player);
+ * // Define content slots (where items will be placed)
+ * int[] contentSlots = {10, 11, 12, 13, 14, 15, 16,
+ *                       19, 20, 21, 22, 23, 24, 25,
+ *                       28, 29, 30, 31, 32, 33, 34};
+ * 
+ * PaginatedGUI gui = new PaginatedGUI(
+ *     GUIType.CHEST_6_ROWS,
+ *     "&6Item Shop",
+ *     contentSlots
+ * );
+ * 
+ * // Set navigation button positions
+ * gui.setNavigationSlots(45, 53, 49); // prev, next, info
+ * 
+ * // Set items
+ * List<ConfigItem> items = loadItemsFromConfig();
+ * gui.setItems(items);
+ * 
  * gui.open(player);
  * }</pre>
  * 
- * <p><strong>Lazy mode example:</strong></p>
+ * <h3>Lazy Mode Example</h3>
  * <pre>{@code
- * PaginatedGUI gui = new PaginatedGUI(GUIType.CHEST_6_ROWS, "&6Database Items");
- * gui.setItemsPerPage(28);
+ * PaginatedGUI gui = new PaginatedGUI(
+ *     GUIType.CHEST_6_ROWS,
+ *     "&6Database Items",
+ *     contentSlots
+ * );
+ * 
+ * // Set lazy loader - loads items for each page on demand
  * gui.setLazyLoader(page -> CompletableFuture.supplyAsync(() -> {
  *     return database.loadItemsForPage(page);
- * }));
+ * }), totalPages);
+ * 
  * gui.open(player);
+ * }</pre>
+ * 
+ * <h3>Extending PaginatedGUI</h3>
+ * <pre>{@code
+ * public class ShopGUI extends PaginatedGUI {
+ *     private static final int[] CONTENT_SLOTS = {10, 11, 12, 13, 14, 15, 16};
+ *     
+ *     public ShopGUI() {
+ *         super(GUIType.CHEST_3_ROWS, "&6Shop", CONTENT_SLOTS);
+ *         setNavigationSlots(18, 26, 22);
+ *     }
+ *     
+ *     {@literal @}Override
+ *     protected void setup(Player player) {
+ *         // Add border or decorations
+ *         fillBorder(GUIUtil.createBlackFiller());
+ *         
+ *         // Load items
+ *         setItems(loadShopItems());
+ *         
+ *         // Call super to render the page
+ *         super.setup(player);
+ *     }
+ * }
  * }</pre>
  *
  * @since 3.1.0
  * @author KhanhHuynh
+ * @see GUI
+ * @see ConfigItem
  */
 public class PaginatedGUI extends GUI {
     
-    private int currentPage;
-    private int itemsPerPage;
+    // Content configuration
     private int[] contentSlots;
     private int previousButtonSlot;
     private int nextButtonSlot;
     private int pageInfoSlot;
     
+    // Navigation buttons
     private ConfigItem previousButton;
     private ConfigItem nextButton;
     private ConfigItem pageInfoItem;
     
-    // Eager mode
-    private List<ConfigItem> allItems;
-    
-    // Lazy mode
-    private Function<Integer, CompletableFuture<List<ConfigItem>>> lazyLoader;
+    // State
+    private int currentPage;
     private int totalPages;
-    private long loadTimeout;
-    
     private boolean loading;
     
+    // Eager mode data
+    private List<ConfigItem> allItems;
+    
+    // Lazy mode data
+    private Function<Integer, CompletableFuture<List<ConfigItem>>> lazyLoader;
+    private List<ConfigItem> currentPageItems;
+    private long loadTimeout;
+    
+    // Placeholder support
+    private PlaceholderResolver placeholderResolver;
+    
+    // Current viewer
+    private Player currentViewer;
+    
     /**
-     * Creates a new paginated GUI.
+     * Creates a new paginated GUI with explicit content slots.
+     * <p>
+     * This is the recommended constructor that requires you to specify
+     * exactly which slots will be used for pagination content.
+     * </p>
      *
      * @param type the GUI type
-     * @param title the GUI title
+     * @param title the GUI title (supports color codes with &amp;)
+     * @param contentSlots the slots where paginated items will be placed
      */
-    public PaginatedGUI(@NotNull GUIType type, @NotNull String title) {
+    public PaginatedGUI(@NotNull GUIType type, @NotNull String title, @NotNull int[] contentSlots) {
         super(type, title);
+        this.contentSlots = contentSlots.clone();
         this.currentPage = 0;
-        this.itemsPerPage = calculateDefaultItemsPerPage();
-        this.contentSlots = generateDefaultContentSlots();
+        this.totalPages = 1;
         this.previousButtonSlot = type.getSize() - 9;
         this.nextButtonSlot = type.getSize() - 1;
         this.pageInfoSlot = type.getSize() - 5;
         this.loadTimeout = 5000; // 5 seconds
         this.loading = false;
+        this.placeholderResolver = new PlaceholderResolver();
         
         setupDefaultNavigationButtons();
+        setupPaginationPlaceholders();
+    }
+    
+    /**
+     * Creates a new paginated GUI with explicit content slots.
+     *
+     * @param rows the number of rows (1-6)
+     * @param title the GUI title (supports color codes with &amp;)
+     * @param contentSlots the slots where paginated items will be placed
+     */
+    public PaginatedGUI(int rows, @NotNull String title, @NotNull int[] contentSlots) {
+        this(GUIType.getByRows(rows), title, contentSlots);
+    }
+    
+    /**
+     * Creates a new paginated GUI without predefined content slots.
+     * <p>
+     * <strong>Warning:</strong> You must call {@link #setContentSlots(int[])}
+     * before using this GUI, or content will not be displayed properly.
+     * </p>
+     *
+     * @param type the GUI type
+     * @param title the GUI title (supports color codes with &amp;)
+     */
+    public PaginatedGUI(@NotNull GUIType type, @NotNull String title) {
+        super(type, title);
+        this.contentSlots = new int[0];
+        this.currentPage = 0;
+        this.totalPages = 1;
+        this.previousButtonSlot = type.getSize() - 9;
+        this.nextButtonSlot = type.getSize() - 1;
+        this.pageInfoSlot = type.getSize() - 5;
+        this.loadTimeout = 5000;
+        this.loading = false;
+        this.placeholderResolver = new PlaceholderResolver();
+        
+        setupDefaultNavigationButtons();
+        setupPaginationPlaceholders();
+    }
+    
+    /**
+     * Sets up pagination-specific placeholders.
+     */
+    private void setupPaginationPlaceholders() {
+        placeholderResolver
+            .addResolver("page", (player, ctx) -> String.valueOf(currentPage + 1))
+            .addResolver("current_page", (player, ctx) -> String.valueOf(currentPage + 1))
+            .addResolver("total_pages", (player, ctx) -> String.valueOf(totalPages))
+            .addResolver("total", (player, ctx) -> String.valueOf(allItems != null ? allItems.size() : 0));
+    }
+    
+    /**
+     * Gets the placeholder resolver for this GUI.
+     * <p>
+     * You can add custom placeholders using this resolver.
+     * </p>
+     *
+     * @return the placeholder resolver
+     */
+    @NotNull
+    public PlaceholderResolver getPlaceholderResolver() {
+        return placeholderResolver;
+    }
+    
+    /**
+     * Sets a custom placeholder resolver.
+     *
+     * @param resolver the new placeholder resolver
+     */
+    public void setPlaceholderResolver(@NotNull PlaceholderResolver resolver) {
+        this.placeholderResolver = resolver;
+        setupPaginationPlaceholders();
     }
     
     /**
      * Sets the items for eager loading mode.
      *
      * @param items the items to paginate
-     * @param player the player to render for (for placeholder replacement)
      */
-    public void setItems(@NotNull List<ConfigItem> items, @NotNull Player player) {
+    public void setItems(@NotNull List<ConfigItem> items) {
         this.allItems = new ArrayList<>(items);
         this.lazyLoader = null;
-        this.totalPages = (int) Math.ceil((double) items.size() / itemsPerPage);
+        this.totalPages = calculateTotalPages();
         this.currentPage = 0;
-        
-        renderPage(player);
     }
     
     /**
      * Sets the lazy loader function.
      *
-     * @param loader function that loads items for a given page
+     * @param loader function that loads items for a given page (0-indexed)
      * @param totalPages the total number of pages
      */
     public void setLazyLoader(@NotNull Function<Integer, CompletableFuture<List<ConfigItem>>> loader, int totalPages) {
@@ -136,12 +273,12 @@ public class PaginatedGUI extends GUI {
     }
     
     /**
-     * Sets the number of items per page.
+     * Gets the number of items per page.
      *
-     * @param itemsPerPage the items per page
+     * @return the items per page (equals content slots length)
      */
-    public void setItemsPerPage(int itemsPerPage) {
-        this.itemsPerPage = itemsPerPage;
+    public int getItemsPerPage() {
+        return contentSlots.length;
     }
     
     /**
@@ -151,7 +288,20 @@ public class PaginatedGUI extends GUI {
      */
     public void setContentSlots(@NotNull int[] slots) {
         this.contentSlots = slots.clone();
-        this.itemsPerPage = slots.length;
+        // Recalculate total pages if items are set
+        if (allItems != null) {
+            this.totalPages = calculateTotalPages();
+        }
+    }
+    
+    /**
+     * Gets the content slots.
+     *
+     * @return a copy of the content slots array
+     */
+    @NotNull
+    public int[] getContentSlots() {
+        return contentSlots.clone();
     }
     
     /**
@@ -205,6 +355,15 @@ public class PaginatedGUI extends GUI {
      */
     public int getTotalPages() {
         return totalPages;
+    }
+    
+    /**
+     * Checks if currently loading a page.
+     *
+     * @return true if loading
+     */
+    public boolean isLoading() {
+        return loading;
     }
     
     /**
@@ -266,13 +425,23 @@ public class PaginatedGUI extends GUI {
     }
     
     @Override
+    protected void setup(@NotNull Player player) {
+        this.currentViewer = player;
+        // Render the current page during setup
+        renderPage(player);
+    }
+    
+    @Override
     public void open(@NotNull Player player) {
-        if (lazyLoader != null && allItems == null) {
+        this.currentViewer = player;
+        
+        if (lazyLoader != null && currentPageItems == null) {
             // Initial lazy load
+            ensureInitialized();
             loadPageLazy(player);
         } else {
-            renderPage(player);
-            GUIManager.getInstance().openGUI(player, this);
+            // Use parent implementation which calls setup()
+            super.open(player);
         }
     }
     
@@ -298,7 +467,7 @@ public class PaginatedGUI extends GUI {
             .thenAccept(items -> {
                 // Update on main thread
                 TaskUtil.runAtEntity(player, () -> {
-                    allItems = items;
+                    currentPageItems = items;
                     renderPage(player);
                     loading = false;
                     
@@ -332,10 +501,13 @@ public class PaginatedGUI extends GUI {
         // Get items for current page
         List<ConfigItem> pageItems = getPageItems();
         
+        // Create placeholder function using the resolver
+        Function<String, String> placeholderFunction = placeholderResolver.asFunction(player);
+        
         // Place items
         for (int i = 0; i < pageItems.size() && i < contentSlots.length; i++) {
             ConfigItem configItem = pageItems.get(i);
-            ItemStack item = configItem.build(text -> replacePlaceholders(text, player));
+            ItemStack item = configItem.build(placeholderFunction);
             setItem(contentSlots[i], item);
         }
         
@@ -348,10 +520,17 @@ public class PaginatedGUI extends GUI {
      */
     @NotNull
     private List<ConfigItem> getPageItems() {
+        // In lazy mode, return current page items
+        if (lazyLoader != null && currentPageItems != null) {
+            return currentPageItems;
+        }
+        
+        // In eager mode, slice from all items
         if (allItems == null) {
             return new ArrayList<>();
         }
         
+        int itemsPerPage = contentSlots.length;
         int start = currentPage * itemsPerPage;
         int end = Math.min(start + itemsPerPage, allItems.size());
         
@@ -363,79 +542,44 @@ public class PaginatedGUI extends GUI {
     }
     
     /**
+     * Calculates total pages based on items and content slots.
+     */
+    private int calculateTotalPages() {
+        if (allItems == null || contentSlots.length == 0) {
+            return 1;
+        }
+        return (int) Math.ceil((double) allItems.size() / contentSlots.length);
+    }
+    
+    /**
      * Updates the navigation buttons.
      */
     private void updateNavigationButtons(@NotNull Player player) {
+        Function<String, String> placeholderFunction = placeholderResolver.asFunction(player);
+        
         // Previous button
         if (currentPage > 0) {
-            ItemStack prevItem = previousButton.build(text -> replacePlaceholders(text, player));
+            ItemStack prevItem = previousButton.build(placeholderFunction);
             setButton(previousButtonSlot, new GUIButton(prevItem, p -> previousPage(p)));
         } else {
             setItem(previousButtonSlot, null);
+            removeButton(previousButtonSlot);
         }
         
         // Next button
         if (currentPage < totalPages - 1) {
-            ItemStack nextItem = nextButton.build(text -> replacePlaceholders(text, player));
+            ItemStack nextItem = nextButton.build(placeholderFunction);
             setButton(nextButtonSlot, new GUIButton(nextItem, p -> nextPage(p)));
         } else {
             setItem(nextButtonSlot, null);
+            removeButton(nextButtonSlot);
         }
         
         // Page info
         if (pageInfoItem != null) {
-            ItemStack infoItem = pageInfoItem.build(text -> replacePlaceholders(text, player));
+            ItemStack infoItem = pageInfoItem.build(placeholderFunction);
             setItem(pageInfoSlot, infoItem);
         }
-    }
-    
-    /**
-     * Replaces placeholders in text.
-     */
-    @NotNull
-    private String replacePlaceholders(@NotNull String text, @NotNull Player player) {
-        return text
-            .replace("{player}", player.getName())
-            .replace("{page}", String.valueOf(currentPage + 1))
-            .replace("{total_pages}", String.valueOf(totalPages))
-            .replace("{current_page}", String.valueOf(currentPage + 1));
-    }
-    
-    /**
-     * Calculates the default number of items per page based on GUI size.
-     */
-    private int calculateDefaultItemsPerPage() {
-        int rows = type.getRows();
-        if (rows <= 2) {
-            return type.getSize() - 3; // Reserve 3 slots for navigation
-        }
-        return (rows - 1) * 9 - 2; // Reserve bottom row for navigation
-    }
-    
-    /**
-     * Generates default content slots.
-     */
-    @NotNull
-    private int[] generateDefaultContentSlots() {
-        int size = type.getSize();
-        int rows = type.getRows();
-        
-        if (rows <= 2) {
-            // Use all slots except last 3 for navigation
-            int[] slots = new int[size - 3];
-            for (int i = 0; i < slots.length; i++) {
-                slots[i] = i;
-            }
-            return slots;
-        }
-        
-        // Use all rows except the last one
-        int contentSize = (rows - 1) * 9;
-        int[] slots = new int[contentSize];
-        for (int i = 0; i < contentSize; i++) {
-            slots[i] = i;
-        }
-        return slots;
     }
     
     /**

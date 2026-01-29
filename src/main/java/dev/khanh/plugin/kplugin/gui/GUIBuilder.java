@@ -1,13 +1,15 @@
 package dev.khanh.plugin.kplugin.gui;
 
+import dev.khanh.plugin.kplugin.gui.button.ConfigItem;
 import dev.khanh.plugin.kplugin.gui.button.GUIButton;
-import dev.khanh.plugin.kplugin.util.ColorUtil;
 import dev.khanh.plugin.kplugin.util.GUIUtil;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -24,17 +26,27 @@ import java.util.function.Consumer;
  *     .setButton(4, myButton)
  *     .setClickHandler(8, player -> player.sendMessage("Clicked!"))
  *     .setViewOnly(true)
+ *     .fillBorder(GUIUtil.createBlackFiller())
+ *     .build();
+ * 
+ * gui.open(player);
+ * }</pre>
+ * 
+ * <p><strong>Row-based construction:</strong></p>
+ * <pre>{@code
+ * GUI gui = new GUIBuilder(3, "&6Menu") // 3 rows = 27 slots
+ *     .fillBorder(GUIUtil.createGrayFiller())
+ *     .setButton(13, closeButton)
  *     .build();
  * }</pre>
  *
  * @since 3.1.0
  * @author KhanhHuynh
+ * @see SimpleGUI
+ * @see GUI
  */
 public class GUIBuilder {
     
-    private final GUIType type;
-    private final String title;
-    private boolean viewOnly = true;
     private final SimpleGUI gui;
     
     /**
@@ -44,9 +56,7 @@ public class GUIBuilder {
      * @param title the display title (supports color codes with &amp;)
      */
     public GUIBuilder(@NotNull GUIType type, @NotNull String title) {
-        this.type = type;
-        this.title = ColorUtil.colorize(title);
-        this.gui = new SimpleGUI(type, this.title);
+        this.gui = new SimpleGUI(type, title);
     }
     
     /**
@@ -59,7 +69,7 @@ public class GUIBuilder {
      * @param title the display title (supports color codes with &amp;)
      */
     public GUIBuilder(int rows, @NotNull String title) {
-        this(GUIType.getByRows(rows), title);
+        this.gui = new SimpleGUI(rows, title);
     }
     
     /**
@@ -102,6 +112,18 @@ public class GUIBuilder {
     }
     
     /**
+     * Sets a global click handler that is called for any slot click.
+     *
+     * @param handler the handler that receives player and slot
+     * @return this builder for chaining
+     */
+    @NotNull
+    public GUIBuilder setGlobalClickHandler(@NotNull BiConsumer<Player, Integer> handler) {
+        gui.setGlobalClickHandler(handler);
+        return this;
+    }
+    
+    /**
      * Sets whether the GUI is view-only.
      *
      * @param viewOnly true for view-only, false for interactive
@@ -114,6 +136,18 @@ public class GUIBuilder {
     }
     
     /**
+     * Sets a close handler for the GUI.
+     *
+     * @param handler the close handler
+     * @return this builder for chaining
+     */
+    @NotNull
+    public GUIBuilder setCloseHandler(@NotNull Consumer<Player> handler) {
+        gui.setCloseHandler(handler);
+        return this;
+    }
+    
+    /**
      * Fills all empty slots with the specified filler item.
      *
      * @param filler the filler item
@@ -121,11 +155,7 @@ public class GUIBuilder {
      */
     @NotNull
     public GUIBuilder fillEmpty(@NotNull ItemStack filler) {
-        for (int i = 0; i < type.getSize(); i++) {
-            if (gui.getInventory().getItem(i) == null) {
-                gui.setItem(i, filler);
-            }
-        }
+        gui.fillEmpty(filler);
         return this;
     }
     
@@ -137,8 +167,7 @@ public class GUIBuilder {
      */
     @NotNull
     public GUIBuilder fillEmptyWithGlass(@NotNull Material glassPaneMaterial) {
-        ItemStack glassPane = new ItemStack(glassPaneMaterial);
-        return fillEmpty(glassPane);
+        return fillEmpty(GUIUtil.createFiller(glassPaneMaterial));
     }
     
     /**
@@ -149,25 +178,60 @@ public class GUIBuilder {
      */
     @NotNull
     public GUIBuilder fillBorder(@NotNull ItemStack borderItem) {
-        int rows = type.getRows();
-        int size = type.getSize();
-        
-        // Top and bottom rows
-        for (int i = 0; i < 9; i++) {
-            gui.setItem(i, borderItem);
-            if (rows > 1) {
-                gui.setItem(size - 9 + i, borderItem);
-            }
+        gui.fillBorder(borderItem);
+        return this;
+    }
+    
+    /**
+     * Fills the specified slots with an item.
+     *
+     * @param slots the list of slots to fill
+     * @param item the item to place
+     * @return this builder for chaining
+     */
+    @NotNull
+    public GUIBuilder fillSlots(@NotNull List<Integer> slots, @NotNull ItemStack item) {
+        for (int slot : slots) {
+            gui.setItem(slot, item);
         }
-        
-        // Side columns
-        if (rows > 2) {
-            for (int row = 1; row < rows - 1; row++) {
-                gui.setItem(row * 9, borderItem);
-                gui.setItem(row * 9 + 8, borderItem);
-            }
-        }
-        
+        return this;
+    }
+    
+    /**
+     * Fills the specified slots with an item.
+     *
+     * @param slots the array of slots to fill
+     * @param item the item to place
+     * @return this builder for chaining
+     */
+    @NotNull
+    public GUIBuilder fillSlots(@NotNull int[] slots, @NotNull ItemStack item) {
+        gui.fillSlots(slots, item);
+        return this;
+    }
+    
+    /**
+     * Places a ConfigItem in all its configured slots.
+     *
+     * @param configItem the config item to place
+     * @return this builder for chaining
+     */
+    @NotNull
+    public GUIBuilder setConfigItem(@NotNull ConfigItem configItem) {
+        gui.withConfigItem(configItem);
+        return this;
+    }
+    
+    /**
+     * Places a ConfigItem with a click handler in all its configured slots.
+     *
+     * @param configItem the config item to place
+     * @param handler the click handler for all slots
+     * @return this builder for chaining
+     */
+    @NotNull
+    public GUIBuilder setConfigItem(@NotNull ConfigItem configItem, @NotNull Consumer<Player> handler) {
+        gui.withConfigItem(configItem, handler);
         return this;
     }
     
@@ -177,22 +241,7 @@ public class GUIBuilder {
      * @return the constructed GUI
      */
     @NotNull
-    public GUI build() {
+    public SimpleGUI build() {
         return gui;
-    }
-    
-    /**
-     * Simple GUI implementation used by the builder.
-     */
-    private static class SimpleGUI extends GUI {
-        
-        protected SimpleGUI(@NotNull GUIType type, @NotNull String title) {
-            super(type, title);
-        }
-        
-        @Override
-        public void open(@NotNull Player player) {
-            GUIManager.getInstance().openGUI(player, this);
-        }
     }
 }
