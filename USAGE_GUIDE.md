@@ -263,22 +263,41 @@ MessageUtil.sendMessage(player, "non.existent.key");
 
 ## Item Builder
 
-ItemStackWrapper: dev.khanh.plugin.kplugin.item.ItemStackWrapper
+> **Recommended**: Use `ItemBuilder` from `gui.item` package for all item creation needs.
+
+ItemBuilder: dev.khanh.plugin.kplugin.item.ItemBuilder
 
 **Fluent API:**
 ```java
-ItemStack sword = new ItemStackWrapper(Material.DIAMOND_SWORD)
-    .setDisplayName("&bLegendary Sword")
-    .addLore("&7Powerful weapon", "&7Deals massive damage")
-    // .setLore(List.of("Line 1", "Line 2"))
-    .addEnchant(Enchantment.DAMAGE_ALL, 5)
-    .addItemFlags(ItemFlag.HIDE_ENCHANTS)
-    .setUnbreakable(true)
+ItemStack sword = ItemBuilder.of(Material.DIAMOND_SWORD)
+    .name("&b&lLegendary Sword")
+    .lore("&7A powerful blade", "&7forged in ancient times")
+    .enchant(Enchantment.DAMAGE_ALL, 5)
+    .enchant(Enchantment.FIRE_ASPECT, 2)
+    .flags(ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ATTRIBUTES)
+    .glow()  // Adds enchantment glow effect
+    .unbreakable()
     .build();
 
-ItemStack head = new ItemStackWrapper(Material.PLAYER_HEAD)
-    .setDisplayName("&eCustom Head")
-    .setSkull("Notch")  // Player name, UUID, URL, or base64
+// Skull support (player name, UUID, URL, or base64)
+ItemStack head = ItemBuilder.of(Material.PLAYER_HEAD)
+    .name("&eCustom Head")
+    .skull("Notch")  // Player name
+    .build();
+
+// UUID skull
+ItemStack uuidHead = ItemBuilder.of(Material.PLAYER_HEAD)
+    .skull("069a79f4-44e9-4726-a5be-fca90e38aaf5")
+    .build();
+
+// Texture URL skull
+ItemStack textureHead = ItemBuilder.of(Material.PLAYER_HEAD)
+    .skull("http://textures.minecraft.net/texture/...")
+    .build();
+
+// Base64 texture skull
+ItemStack base64Head = ItemBuilder.of(Material.PLAYER_HEAD)
+    .skull("eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvLi4uIn19fQ==")
     .build();
 ```
 
@@ -288,20 +307,35 @@ ItemStack head = new ItemStackWrapper(Material.PLAYER_HEAD)
 ```yaml
 legendary-sword:
   material: DIAMOND_SWORD
-  display-name: "&bLegendary Sword"
+  name: "&b&lLegendary Sword"
   lore:
-    - "&7Powerful weapon"
-    - "&eRarity: &6Legendary"
+    - "&7A powerful blade"
+    - "&7forged in ancient times"
   enchantments:
-    DAMAGE_ALL: 5
-    FIRE_ASPECT: 2
+    sharpness: 5
+    fire_aspect: 2
   flags:
     - HIDE_ENCHANTS
+    - HIDE_ATTRIBUTES
+  glow: true
+  unbreakable: true
   custom-model-data: 1001
 
+# Player head examples
 player-head:
-  skull: "Notch"
-  display-name: "&eCustom Head"
+  skull: "Notch"  # Simple format: player name/UUID/URL/base64
+  name: "&eNotch's Head"
+
+# Alternative keys (backward compatible)
+custom-head:
+  material: PLAYER_HEAD
+  skull-owner: "Notch"  # Legacy format
+  name: "&eCustom Head"
+
+texture-head:
+  material: PLAYER_HEAD
+  skull-texture: "eyJ0ZXh0dXJlcyI6..."  # Legacy format
+  name: "&eTexture Head"
 ```
 
 **Load from config:**
@@ -309,20 +343,42 @@ player-head:
 ConfigurationSection section = yaml.getConfigurationSection("legendary-sword");
 
 // Without translation
-ItemStack item = ItemStackWrapper.fromConfigurationSection(section);
+ItemStack item = ItemBuilder.fromConfig(section).build();
 
 // With placeholders
-ItemStack item = ItemStackWrapper.fromConfigurationSection(section, text -> 
-    text.replace("%player%", player.getName())
-);
+ItemStack item = ItemBuilder.fromConfig(section)
+    .replacePlaceholders(text -> text.replace("%player%", player.getName()))
+    .build();
 ```
 
 **Key Methods:**
-- `setDisplayName(String)` / `setLore(String...)` / `addLore(String...)`
-- `addEnchant(Enchantment, int)` / `addItemFlags(ItemFlag...)`
-- `setUnbreakable(boolean)` / `setCustomModelData(int)` / `setSkull(String)`
+- `of(Material)` / `of(ItemStack)` - Create builder
+- `fromConfig(ConfigurationSection)` - Load from YAML
+- `name(String)` / `lore(String...)` / `addLore(String...)`
+- `enchant(Enchantment, int)` / `flags(ItemFlag...)`
+- `customModelData(Integer)` / `unbreakable()` / `glow()`
+- `skull(String)` - Set skull (player name, UUID, URL, or base64)
+- `replacePlaceholders(Function<String, String>)` - Apply placeholder replacer
 - `build()` - Get final ItemStack
-- `fromConfigurationSection(ConfigurationSection)` - Create from YAML
+
+---
+
+## Item Builder (Legacy - Deprecated)
+
+> **⚠️ DEPRECATED**: `ItemStackWrapper` is deprecated. Use `ItemBuilder` instead.
+
+ItemStackWrapper: dev.khanh.plugin.kplugin.item.ItemStackWrapper
+
+This class is kept for backward compatibility. New code should use `ItemBuilder` from `gui.item` package.
+
+**Migration Guide:**
+- `new ItemStackWrapper(material)` → `ItemBuilder.of(material)`
+- `new ItemStackWrapper(itemStack)` → `ItemBuilder.of(itemStack)`
+- `setDisplayName(name)` → `name(name)`
+- `setLore(lines)` → `lore(lines)`
+- `setSkull(value)` → `skull(value)`
+- `fromConfigurationSection(section)` → `ItemBuilder.fromConfig(section)`
+
 
 ---
 
