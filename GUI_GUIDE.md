@@ -86,7 +86,7 @@ public class MyPlugin extends KPlugin {
     
     @Override
     public void disable() {
-        // GUIManager cleanup is automatic
+        GUIManager.shutdown();
     }
 }
 ```
