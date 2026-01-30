@@ -220,4 +220,10 @@ public final class SlotHandle {
     public <T> T getMeta(@NotNull String key) {
         return gui.getSlotMeta(slot, key);
     }
+
+    @NotNull
+    public <T> T getMeta(@NotNull String key, @NotNull T defaultValue) {
+        T value = getMeta(key);
+        return value != null ? value : defaultValue;
+    }
 }
