@@ -14,6 +14,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -53,8 +54,8 @@ public class GUIManager implements Listener {
         
         // Register event listeners
         Bukkit.getPluginManager().registerEvents(this, plugin);
-        
-        LoggerUtil.info("GUIManager initialized with UUID: " + managerUUID);
+
+        LoggerUtil.info("GUIManager initialized");
     }
     
     /**
@@ -66,7 +67,7 @@ public class GUIManager implements Listener {
     public static GUIManager getInstance() {
         return InstanceManager.getInstanceOrElseThrow(GUIManager.class);
     }
-    
+
     /**
      * Gets the manager UUID.
      *
@@ -85,9 +86,8 @@ public class GUIManager implements Listener {
      */
     public void openGUI(@NotNull Player player, @NotNull GUI gui) {
         TaskUtil.runAtEntity(player, () -> {
-            openGUIs.put(player.getUniqueId(), gui);
             player.openInventory(gui.getInventory());
-            gui.handleOpen(player);
+            // Note: GUI tracking is handled by onInventoryOpen event
         });
     }
     
@@ -169,11 +169,15 @@ public class GUIManager implements Listener {
             
             Player player = Bukkit.getPlayer(playerId);
             if (player != null && player.isOnline()) {
-                TaskUtil.runAtEntity(player, () -> {
+                Runnable run = () -> {
                     openGUIs.remove(playerId);
                     player.closeInventory();
                     gui.handleClose(player);
-                });
+                };
+                if (TaskUtil.isFolia()) {
+                    TaskUtil.runAtEntity(player, run);
+                }
+                run.run();
             } else {
                 // Player is offline, just remove from tracking
                 openGUIs.remove(playerId);
@@ -209,12 +213,12 @@ public class GUIManager implements Listener {
         
         Player player = (Player) event.getWhoClicked();
         GUI gui = getGUI(event.getInventory());
+        InventoryHolder holder = event.getInventory().getHolder();
         
         // Check if it's a stale GUI
-        if (gui == null && event.getInventory().getHolder() instanceof GUIHolder) {
+        if (gui == null && holder != null && !(holder instanceof GUIHolder) && isGUIHolderClass(holder)) {
             event.setCancelled(true);
             player.closeInventory();
-            player.sendMessage("§cThis GUI is no longer valid (plugin was reloaded).");
             LoggerUtil.info("Closed stale GUI for player " + player.getName());
             return;
         }
@@ -267,13 +271,14 @@ public class GUIManager implements Listener {
         }
         
         GUI gui = getGUI(event.getInventory());
+        InventoryHolder holder = event.getInventory().getHolder();
         
         // Check for stale GUI
-        if (gui == null && event.getInventory().getHolder() instanceof GUIHolder) {
+        if (gui == null && holder != null && !(holder instanceof GUIHolder) && isGUIHolderClass(holder)) {
             event.setCancelled(true);
             Player player = (Player) event.getWhoClicked();
             player.closeInventory();
-            player.sendMessage("§cThis GUI is no longer valid (plugin was reloaded).");
+            LoggerUtil.info("Closed stale GUI for player " + player.getName());
             return;
         }
         
@@ -316,9 +321,11 @@ public class GUIManager implements Listener {
             return;
         }
         
+        Player player = (Player) event.getPlayer();
         GUI gui = getGUI(event.getInventory());
         if (gui != null) {
-            openGUIs.put(event.getPlayer().getUniqueId(), gui);
+            openGUIs.put(player.getUniqueId(), gui);
+            gui.handleOpen(player);
         }
     }
     
@@ -328,5 +335,9 @@ public class GUIManager implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(@NotNull PlayerQuitEvent event) {
         openGUIs.remove(event.getPlayer().getUniqueId());
+    }
+
+    private boolean isGUIHolderClass(@Nullable InventoryHolder holder) {
+        return holder != null && holder.getClass().getName().equals("dev.khanh.plugin.kplugin.gui.holder.GUIHolder");
     }
 }
