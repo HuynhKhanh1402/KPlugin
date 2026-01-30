@@ -2,7 +2,7 @@ package dev.khanh.plugin.kplugin.gui;
 
 import dev.khanh.plugin.kplugin.gui.context.ClickContext;
 import dev.khanh.plugin.kplugin.gui.holder.GUIHolder;
-import dev.khanh.plugin.kplugin.gui.item.ItemBuilder;
+import dev.khanh.plugin.kplugin.item.ItemBuilder;
 import dev.khanh.plugin.kplugin.gui.slot.MultiSlotHandle;
 import dev.khanh.plugin.kplugin.gui.slot.SlotHandle;
 import dev.khanh.plugin.kplugin.gui.slot.SlotRangeHandle;

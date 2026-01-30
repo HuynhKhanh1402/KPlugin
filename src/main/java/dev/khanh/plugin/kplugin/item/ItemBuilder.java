@@ -1,32 +1,46 @@
-package dev.khanh.plugin.kplugin.gui.item;
+package dev.khanh.plugin.kplugin.item;
 
+import com.destroystokyo.paper.profile.PlayerProfile;
+import com.destroystokyo.paper.profile.ProfileProperty;
 import dev.khanh.plugin.kplugin.util.ColorUtil;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 /**
  * Fluent builder for creating ItemStacks.
  * <p>
  * Supports display names, lore, enchantments, flags, custom model data,
- * skull textures, persistent data, and configuration loading.
+ * skull textures (player names, UUIDs, URLs, base64), and configuration loading.
  * </p>
+ * <p>
+ * <strong>Skull Support:</strong> The {@link #skull(String)} method accepts multiple formats:
+ * </p>
+ * <ul>
+ *   <li>Player names (2-16 alphanumeric characters): {@code "Notch"}</li>
+ *   <li>Player UUIDs: {@code "069a79f4-44e9-4726-a5be-fca90e38aaf5"}</li>
+ *   <li>Texture URLs: {@code "http://textures.minecraft.net/texture/..."}</li>
+ *   <li>Base64 texture data: Any other string is treated as base64</li>
+ * </ul>
  */
 public final class ItemBuilder {
+    
+    private static final Pattern PLAYER_NAME_REGEX = Pattern.compile("^[a-zA-Z0-9_]{2,16}$");
+    private static final Pattern UUID_REGEX = Pattern.compile("^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$");
     
     private Material material;
     private int amount = 1;
@@ -36,9 +50,7 @@ public final class ItemBuilder {
     private final Set<ItemFlag> flags;
     private Integer customModelData;
     private boolean unbreakable;
-    private String skullOwner;
-    private String skullTexture;
-    private final Map<NamespacedKey, PersistentData<?>> persistentData;
+    private String skullValue;
     private Function<String, String> placeholderReplacer;
     
     /**
@@ -51,7 +63,6 @@ public final class ItemBuilder {
         this.lore = new ArrayList<>();
         this.enchantments = new HashMap<>();
         this.flags = new HashSet<>();
-        this.persistentData = new HashMap<>();
     }
     
     /**
@@ -65,7 +76,6 @@ public final class ItemBuilder {
         this.lore = new ArrayList<>();
         this.enchantments = new HashMap<>();
         this.flags = new HashSet<>();
-        this.persistentData = new HashMap<>();
         
         // Copy existing meta
         if (item.hasItemMeta()) {
@@ -123,14 +133,20 @@ public final class ItemBuilder {
             return null;
         }
         
-        String materialName = section.getString("material");
-        if (materialName == null) {
-            return null;
-        }
-        
-        Material material = Material.matchMaterial(materialName);
-        if (material == null) {
-            return null;
+        // Material handling (supports both "material" and "skull" keys)
+        Material material;
+        String skullValue = section.getString("skull");
+        if (skullValue != null && !skullValue.isEmpty()) {
+            material = Material.PLAYER_HEAD;
+        } else {
+            String materialName = section.getString("material");
+            if (materialName == null) {
+                return null;
+            }
+            material = Material.matchMaterial(materialName);
+            if (material == null) {
+                return null;
+            }
         }
         
         ItemBuilder builder = new ItemBuilder(material);
@@ -138,7 +154,7 @@ public final class ItemBuilder {
         // Amount
         builder.amount = section.getInt("amount", 1);
         
-        // Display name
+        // Display name (supports both "name" and "display-name")
         String name = section.getString("name");
         if (name == null) {
             name = section.getString("display-name");
@@ -148,9 +164,8 @@ public final class ItemBuilder {
         }
         
         // Lore
-        List<String> lore = section.getStringList("lore");
-        if (!lore.isEmpty()) {
-            builder.lore.addAll(lore);
+        if (section.contains("lore")) {
+            builder.lore.addAll(section.getStringList("lore"));
         }
         
         // Enchantments
@@ -159,7 +174,6 @@ public final class ItemBuilder {
             for (String key : enchantSection.getKeys(false)) {
                 Enchantment enchant = Enchantment.getByKey(NamespacedKey.minecraft(key.toLowerCase()));
                 if (enchant == null) {
-                    // Try by name for backwards compatibility
                     enchant = Enchantment.getByName(key.toUpperCase());
                 }
                 if (enchant != null) {
@@ -183,18 +197,29 @@ public final class ItemBuilder {
             builder.customModelData = section.getInt("custom-model-data");
         }
         
-        // Unbreakable
-        builder.unbreakable = section.getBoolean("unbreakable", false);
-        
-        // Glow
+        // Glow effect
         if (section.getBoolean("glow", false)) {
             builder.enchantments.put(Enchantment.DURABILITY, 1);
             builder.flags.add(ItemFlag.HIDE_ENCHANTS);
         }
         
-        // Skull
-        builder.skullOwner = section.getString("skull-owner");
-        builder.skullTexture = section.getString("skull-texture");
+        // Unbreakable
+        builder.unbreakable = section.getBoolean("unbreakable", false);
+        
+        // Skull handling (supports "skull", "skull-owner", "skull-texture")
+        if (skullValue != null && !skullValue.isEmpty()) {
+            builder.skullValue = skullValue;
+        } else {
+            String skullOwner = section.getString("skull-owner");
+            if (skullOwner != null && !skullOwner.isEmpty()) {
+                builder.skullValue = skullOwner;
+            } else {
+                String skullTexture = section.getString("skull-texture");
+                if (skullTexture != null && !skullTexture.isEmpty()) {
+                    builder.skullValue = skullTexture;
+                }
+            }
+        }
         
         return builder;
     }
@@ -221,7 +246,7 @@ public final class ItemBuilder {
      */
     @NotNull
     public ItemBuilder amount(int amount) {
-        this.amount = Math.max(1, Math.min(64, amount));
+        this.amount = amount;
         return this;
     }
     
@@ -454,74 +479,24 @@ public final class ItemBuilder {
     }
     
     /**
-     * Sets the skull owner (for PLAYER_HEAD material).
-     *
-     * @param owner the player name
-     * @return this builder for chaining
-     */
-    @NotNull
-    public ItemBuilder skullOwner(@Nullable String owner) {
-        this.skullOwner = owner;
-        return this;
-    }
-    
-    /**
-     * Sets the skull texture (for PLAYER_HEAD material).
+     * Sets the skull texture or owner (for PLAYER_HEAD material).
      * <p>
-     * Supports base64 encoded texture data, texture URL, or player UUID.
+     * Accepts multiple formats:
      * </p>
+     * <ul>
+     *   <li>Player name (e.g., "Notch")</li>
+     *   <li>Player UUID (e.g., "069a79f4-44e9-4726-a5be-fca90e38aaf5")</li>
+     *   <li>Texture URL (e.g., "http://textures.minecraft.net/texture/...")</li>
+     *   <li>Base64 encoded texture data</li>
+     * </ul>
      *
-     * @param texture the texture data
+     * @param value the skull value (player name, UUID, URL, or base64)
      * @return this builder for chaining
      */
     @NotNull
-    public ItemBuilder skullTexture(@Nullable String texture) {
-        this.skullTexture = texture;
+    public ItemBuilder skull(@Nullable String value) {
+        this.skullValue = value;
         return this;
-    }
-    
-    /**
-     * Adds persistent data to the item.
-     *
-     * @param key the namespaced key
-     * @param type the data type
-     * @param value the value
-     * @param <T> the primitive type
-     * @param <Z> the complex type
-     * @return this builder for chaining
-     */
-    @NotNull
-    public <T, Z> ItemBuilder persistentData(@NotNull NamespacedKey key,
-                                             @NotNull PersistentDataType<T, Z> type,
-                                             @NotNull Z value) {
-        this.persistentData.put(key, new PersistentData<>(type, value));
-        return this;
-    }
-    
-    /**
-     * Adds a string persistent data value.
-     *
-     * @param plugin the plugin for namespace
-     * @param key the key name
-     * @param value the string value
-     * @return this builder for chaining
-     */
-    @NotNull
-    public ItemBuilder persistentData(@NotNull Plugin plugin, @NotNull String key, @NotNull String value) {
-        return persistentData(new NamespacedKey(plugin, key), PersistentDataType.STRING, value);
-    }
-    
-    /**
-     * Adds an integer persistent data value.
-     *
-     * @param plugin the plugin for namespace
-     * @param key the key name
-     * @param value the integer value
-     * @return this builder for chaining
-     */
-    @NotNull
-    public ItemBuilder persistentData(@NotNull Plugin plugin, @NotNull String key, int value) {
-        return persistentData(new NamespacedKey(plugin, key), PersistentDataType.INTEGER, value);
     }
     
     /**
@@ -550,34 +525,15 @@ public final class ItemBuilder {
      * @return this builder for chaining
      */
     @NotNull
-    public ItemBuilder apply(@NotNull Consumer<ItemBuilder> consumer) {
+    public ItemBuilder modify(@NotNull Consumer<ItemBuilder> consumer) {
         consumer.accept(this);
         return this;
     }
     
-    /**
-     * Conditionally applies a consumer if the condition is true.
-     *
-     * @param condition the condition
-     * @param consumer the consumer to apply if condition is true
-     * @return this builder for chaining
-     */
-    @NotNull
-    public ItemBuilder applyIf(boolean condition, @NotNull Consumer<ItemBuilder> consumer) {
-        if (condition) {
-            consumer.accept(this);
-        }
-        return this;
-    }
-    
-    // ==================== Build Methods ====================
+    // ==================== Build Method ====================
     
     /**
-     * Builds and returns the ItemStack.
-     * <p>
-     * Each call returns a new ItemStack instance. The builder can be reused
-     * to create multiple items with the same base configuration.
-     * </p>
+     * Builds the final ItemStack.
      *
      * @return a new ItemStack
      */
@@ -587,26 +543,23 @@ public final class ItemBuilder {
         ItemMeta meta = item.getItemMeta();
         
         if (meta != null) {
+            // Apply placeholder replacer
+            Function<String, String> replacer = placeholderReplacer != null ?
+                    placeholderReplacer : Function.identity();
+            
             // Display name
             if (displayName != null) {
-                String name = displayName;
-                if (placeholderReplacer != null) {
-                    name = placeholderReplacer.apply(name);
-                }
-                meta.setDisplayName(ColorUtil.colorize(name));
+                String processedName = ColorUtil.colorize(replacer.apply(displayName));
+                meta.setDisplayName(processedName);
             }
             
             // Lore
             if (!lore.isEmpty()) {
-                List<String> coloredLore = new ArrayList<>();
+                List<String> processedLore = new ArrayList<>();
                 for (String line : lore) {
-                    String processed = line;
-                    if (placeholderReplacer != null) {
-                        processed = placeholderReplacer.apply(processed);
-                    }
-                    coloredLore.add(ColorUtil.colorize(processed));
+                    processedLore.add(ColorUtil.colorize(replacer.apply(line)));
                 }
-                meta.setLore(coloredLore);
+                meta.setLore(processedLore);
             }
             
             // Flags
@@ -622,24 +575,16 @@ public final class ItemBuilder {
             // Unbreakable
             meta.setUnbreakable(unbreakable);
             
-            // Skull
-            if (material == Material.PLAYER_HEAD && meta instanceof SkullMeta) {
+            // Skull handling
+            if (skullValue != null && meta instanceof SkullMeta) {
                 SkullMeta skullMeta = (SkullMeta) meta;
-                applySkullMeta(skullMeta);
-            }
-            
-            // Persistent data
-            if (!persistentData.isEmpty()) {
-                PersistentDataContainer pdc = meta.getPersistentDataContainer();
-                for (Map.Entry<NamespacedKey, PersistentData<?>> entry : persistentData.entrySet()) {
-                    entry.getValue().apply(pdc, entry.getKey());
-                }
+                applySkullValue(skullMeta, skullValue);
             }
             
             item.setItemMeta(meta);
         }
         
-        // Enchantments (after meta to allow unsafe enchants)
+        // Enchantments (applied after meta to support unsafe enchants)
         for (Map.Entry<Enchantment, Integer> entry : enchantments.entrySet()) {
             item.addUnsafeEnchantment(entry.getKey(), entry.getValue());
         }
@@ -647,53 +592,100 @@ public final class ItemBuilder {
         return item;
     }
     
-    /**
-     * Creates a copy of this builder.
-     *
-     * @return a new ItemBuilder with the same configuration
-     */
-    @NotNull
-    public ItemBuilder copy() {
-        ItemBuilder copy = new ItemBuilder(this.material);
-        copy.amount = this.amount;
-        copy.displayName = this.displayName;
-        copy.lore.addAll(this.lore);
-        copy.enchantments.putAll(this.enchantments);
-        copy.flags.addAll(this.flags);
-        copy.customModelData = this.customModelData;
-        copy.unbreakable = this.unbreakable;
-        copy.skullOwner = this.skullOwner;
-        copy.skullTexture = this.skullTexture;
-        copy.persistentData.putAll(this.persistentData);
-        copy.placeholderReplacer = this.placeholderReplacer;
-        return copy;
-    }
-    
-    // ==================== Internal Helpers ====================
-    
-    private void applySkullMeta(SkullMeta meta) {
-        if (skullOwner != null && !skullOwner.isEmpty()) {
-            meta.setOwner(skullOwner);
-        }
-        // Note: For base64 textures, use Paper API or reflection
-        // This is a simplified implementation for basic skull support
-    }
+    // ==================== Skull Helper Methods ====================
     
     /**
-     * Internal class for storing typed persistent data.
+     * Applies skull value to skull meta.
+     * <p>
+     * Automatically detects format:
+     * <ul>
+     *   <li>Player name pattern: Sets as owner</li>
+     *   <li>UUID pattern: Fetches player and sets as owner</li>
+     *   <li>URL pattern: Converts to base64 and applies texture</li>
+     *   <li>Otherwise: Treats as base64 texture</li>
+     * </ul>
+     * </p>
      */
-    private static class PersistentData<Z> {
-        private final PersistentDataType<?, Z> type;
-        private final Z value;
-        
-        <T> PersistentData(PersistentDataType<T, Z> type, Z value) {
-            this.type = type;
-            this.value = value;
+    private void applySkullValue(@NotNull SkullMeta skullMeta, @NotNull String value) {
+        if (value.isEmpty()) {
+            return;
         }
         
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        void apply(PersistentDataContainer container, NamespacedKey key) {
-            container.set(key, (PersistentDataType) type, value);
+        // Check for player name
+        if (PLAYER_NAME_REGEX.matcher(value).matches()) {
+            setSkullByPlayerName(skullMeta, value);
+            return;
+        }
+        
+        // Check for UUID
+        if (UUID_REGEX.matcher(value).matches()) {
+            try {
+                UUID uuid = UUID.fromString(value);
+                setSkullByUUID(skullMeta, uuid);
+                return;
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        
+        // Check for URL
+        if (value.startsWith("http://") || value.startsWith("https://")) {
+            setSkullByUrl(skullMeta, value);
+            return;
+        }
+        
+        // Treat as base64
+        setSkullByBase64(skullMeta, value);
+    }
+    
+    /**
+     * Sets skull by player name.
+     */
+    private void setSkullByPlayerName(@NotNull SkullMeta skullMeta, @NotNull String playerName) {
+        OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
+        skullMeta.setOwningPlayer(offlinePlayer);
+    }
+    
+    /**
+     * Sets skull by player UUID.
+     */
+    private void setSkullByUUID(@NotNull SkullMeta skullMeta, @NotNull UUID uuid) {
+        OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
+        skullMeta.setOwningPlayer(offlinePlayer);
+    }
+    
+    /**
+     * Sets skull by texture URL.
+     */
+    private void setSkullByUrl(@NotNull SkullMeta skullMeta, @NotNull String url) {
+        String base64 = urlToBase64(url);
+        setSkullByBase64(skullMeta, base64);
+    }
+    
+    /**
+     * Converts texture URL to base64.
+     */
+    private String urlToBase64(@NotNull String url) {
+        String json = String.format("{\"textures\":{\"SKIN\":{\"url\":\"%s\"}}}", url);
+        return Base64.getEncoder().encodeToString(json.getBytes());
+    }
+    
+    /**
+     * Sets skull by base64 texture.
+     */
+    private void setSkullByBase64(@NotNull SkullMeta skullMeta, @NotNull String base64) {
+        try {
+            UUID randomUuid = UUID.randomUUID();
+            PlayerProfile profile = Bukkit.createProfile(randomUuid);
+            ProfileProperty property = new ProfileProperty("textures", base64);
+            profile.setProperty(property);
+            skullMeta.setPlayerProfile(profile);
+        } catch (Exception e) {
+            // Fallback: Try legacy method if available
+            try {
+                UUID randomUuid = UUID.randomUUID();
+                skullMeta.setOwningPlayer(Bukkit.getOfflinePlayer(randomUuid));
+            } catch (Exception ignored) {
+            }
         }
     }
 }

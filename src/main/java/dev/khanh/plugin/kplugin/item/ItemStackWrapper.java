@@ -17,7 +17,29 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-
+/**
+ * Legacy item wrapper class.
+ * 
+ * @deprecated Use {@link ItemBuilder} instead.
+ *             This class is kept for backward compatibility only.
+ *             <p>
+ *             <strong>Migration Guide:</strong>
+ *             </p>
+ *             <ul>
+ *               <li>{@code new ItemStackWrapper(material)} → {@code ItemBuilder.of(material)}</li>
+ *               <li>{@code new ItemStackWrapper(itemStack)} → {@code ItemBuilder.of(itemStack)}</li>
+ *               <li>{@code setDisplayName(name)} → {@code name(name)}</li>
+ *               <li>{@code setLore(lines)} → {@code lore(lines)}</li>
+ *               <li>{@code addLore(lines)} → {@code addLore(lines)}</li>
+ *               <li>{@code setSkull(value)} → {@code skull(value)}</li>
+ *               <li>{@code fromConfigurationSection(section)} → {@code ItemBuilder.fromConfig(section)}</li>
+ *             </ul>
+ *             <p>
+ *             ItemBuilder provides the same functionality with a cleaner fluent API
+ *             and is actively maintained.
+ *             </p>
+ */
+@Deprecated
 public class ItemStackWrapper {
     private final ItemStack itemStack;
 

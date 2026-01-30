@@ -1,4 +1,4 @@
-package dev.khanh.plugin.kplugin.gui.item;
+package dev.khanh.plugin.kplugin.item;
 
 import dev.khanh.plugin.kplugin.util.ColorUtil;
 import org.bukkit.Material;
@@ -35,8 +35,7 @@ public final class ItemTemplate {
     private final Integer customModelData;
     private final boolean glow;
     private final boolean unbreakable;
-    private final String skullOwner;
-    private final String skullTexture;
+    private final String skullValue;
     
     private ItemTemplate(Builder builder) {
         this.material = builder.material;
@@ -49,8 +48,7 @@ public final class ItemTemplate {
         this.customModelData = builder.customModelData;
         this.glow = builder.glow;
         this.unbreakable = builder.unbreakable;
-        this.skullOwner = builder.skullOwner;
-        this.skullTexture = builder.skullTexture;
+        this.skullValue = builder.skullValue;
     }
     
     // ==================== Static Factory Methods ====================
@@ -129,8 +127,15 @@ public final class ItemTemplate {
         }
         builder.glow = section.getBoolean("glow", false);
         builder.unbreakable = section.getBoolean("unbreakable", false);
-        builder.skullOwner = section.getString("skull-owner");
-        builder.skullTexture = section.getString("skull-texture");
+        // Skull handling (supports "skull", "skull-owner", "skull-texture")
+        String skullValue = section.getString("skull");
+        if (skullValue == null || skullValue.isEmpty()) {
+            skullValue = section.getString("skull-owner");
+        }
+        if (skullValue == null || skullValue.isEmpty()) {
+            skullValue = section.getString("skull-texture");
+        }
+        builder.skullValue = skullValue;
         
         return builder.build();
     }
@@ -387,11 +392,8 @@ public final class ItemTemplate {
         if (unbreakable) {
             builder.unbreakable();
         }
-        if (skullOwner != null) {
-            builder.skullOwner(skullOwner);
-        }
-        if (skullTexture != null) {
-            builder.skullTexture(skullTexture);
+        if (skullValue != null) {
+            builder.skull(skullValue);
         }
         
         return builder;
@@ -499,8 +501,7 @@ public final class ItemTemplate {
         private Integer customModelData;
         private boolean glow;
         private boolean unbreakable;
-        private String skullOwner;
-        private String skullTexture;
+        private String skullValue;
         
         private Builder(@NotNull Material material) {
             this.material = material;
@@ -597,14 +598,8 @@ public final class ItemTemplate {
         }
         
         @NotNull
-        public Builder skullOwner(@Nullable String owner) {
-            this.skullOwner = owner;
-            return this;
-        }
-        
-        @NotNull
-        public Builder skullTexture(@Nullable String texture) {
-            this.skullTexture = texture;
+        public Builder skull(@Nullable String value) {
+            this.skullValue = value;
             return this;
         }
         

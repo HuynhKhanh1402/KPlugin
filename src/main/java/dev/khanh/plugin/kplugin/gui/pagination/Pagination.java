@@ -2,7 +2,7 @@ package dev.khanh.plugin.kplugin.gui.pagination;
 
 import dev.khanh.plugin.kplugin.gui.context.ClickContext;
 import dev.khanh.plugin.kplugin.gui.GUI;
-import dev.khanh.plugin.kplugin.gui.item.ItemBuilder;
+import dev.khanh.plugin.kplugin.item.ItemBuilder;
 import dev.khanh.plugin.kplugin.util.ColorUtil;
 import dev.khanh.plugin.kplugin.util.TaskUtil;
 import org.bukkit.Material;

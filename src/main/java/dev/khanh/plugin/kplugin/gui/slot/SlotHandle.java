@@ -2,7 +2,7 @@ package dev.khanh.plugin.kplugin.gui.slot;
 
 import dev.khanh.plugin.kplugin.gui.context.ClickContext;
 import dev.khanh.plugin.kplugin.gui.GUI;
-import dev.khanh.plugin.kplugin.gui.item.ItemBuilder;
+import dev.khanh.plugin.kplugin.item.ItemBuilder;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
