@@ -310,6 +310,93 @@ GUI.builder(InventoryType.DISPENSER)  // 3x3 grid
 GUI.builder(InventoryType.HOPPER)     // 5 slots horizontal
 ```
 
+### Creating from Existing GUI
+
+You can convert an existing GUI to a builder for modification:
+
+```java
+// Create original GUI
+GUI originalGUI = GUI.builder(3)
+    .title("&6Shop Menu")
+    .slot(13, shopItem, ctx -> openShop(ctx.player()))
+    .fillBorder(borderItem)
+    .build();
+
+// Convert to builder for modification
+GUIBuilder builder = originalGUI.toBuilder();
+
+// Modify the copy
+GUI modifiedGUI = builder
+    .title("&a&lUpdated Shop")
+    .slot(14, newItem, ctx -> newAction(ctx))
+    .removeSlot(13)  // Remove old shop item
+    .build();
+
+// Or create a modified copy directly
+GUI copiedGUI = originalGUI.toBuilder()
+    .title("&bShop Copy")
+    .slot(15, anotherItem)
+    .build();
+```
+
+**Use cases for `toBuilder()`**:
+- **Template Pattern**: Create a base GUI and modify it for different contexts
+- **Player-specific GUIs**: Customize a template GUI for individual players
+- **Dynamic Updates**: Clone a GUI and update specific slots
+- **A/B Testing**: Create variations of the same GUI
+
+```java
+// Example: Player-specific shop
+public GUI createPlayerShop(Player player, GUI shopTemplate) {
+    return shopTemplate.toBuilder()
+        .title("&6Shop - " + player.getName())
+        .slot(0, createPlayerInfoItem(player))
+        .onOpen(p -> LoggerUtil.info(p.getName() + " opened shop"))
+        .build();
+}
+
+// Example: Dynamic difficulty levels
+public GUI createDifficultyGUI(String difficulty) {
+    GUI baseGUI = getBaseGUI();
+    
+    return baseGUI.toBuilder()
+        .title("&c" + difficulty + " Mode")
+        .slot(13, getDifficultyItem(difficulty))
+        .removeSlotRange(10, 16)  // Clear old items
+        .build();
+}
+```
+
+**Important notes**:
+- Slot items are **cloned** (independent copies)
+- Event handlers are **referenced** (shared between original and copy)
+- Metadata is **not copied** (new GUI starts fresh)
+- The original GUI remains unchanged
+
+### Builder Utility Methods
+
+```java
+GUIBuilder builder = GUI.builder(3).title("&aTest");
+
+// Remove specific slot
+builder.removeSlot(13);
+
+// Remove range of slots
+builder.removeSlotRange(0, 8);  // Remove top row
+
+// Clear all slots
+builder.clearSlots();
+
+// Create a copy of the builder
+GUIBuilder copy = builder.copy();
+copy.title("&bCopy").build();
+
+// Chain with `from()` static method
+GUIBuilder newBuilder = GUIBuilder.from(existingGUI)
+    .title("&eNew Title")
+    .build();
+```
+
 ---
 
 ## Slot Operations
@@ -889,8 +976,10 @@ ItemStack item = template.build(placeholders);
 ### Overview
 
 The Pagination system supports two modes:
-1. **Eager** - Pre-load all items at once
-2. **Async** - Load pages on-demand asynchronously
+1. **Eager** - Pre-load all items at once (total pages calculated automatically)
+2. **Async** - Load pages on-demand asynchronously (**requires manual totalPages() call**)
+
+**⚠️ Important**: When using `asyncLoader()` for lazy loading, you **MUST** call `totalPages()` to set the total page count. Calling `getTotalPages()` without setting it will throw `IllegalStateException`.
 
 ### Eager Pagination
 
@@ -963,6 +1052,9 @@ public void openDatabaseItems(Player player) {
     
     int[] contentSlots = {/* ... 28 slots ... */};
     
+    // ⚠️ IMPORTANT: When using asyncLoader(), you MUST set totalPages()
+    // Otherwise getTotalPages() will throw IllegalStateException
+    
     Pagination<ItemData> pagination = Pagination.<ItemData>create(gui, contentSlots)
         // Async loader - runs off main thread
         .asyncLoader(request -> 
@@ -971,7 +1063,7 @@ public void openDatabaseItems(Player player) {
                 return database.loadItems(request.offset, request.itemsPerPage);
             })
         )
-        // Total pages supplier
+        // ⚠️ REQUIRED for async pagination!
         .totalPages(() -> {
             int totalItems = database.countItems();
             return (int) Math.ceil(totalItems / 28.0);
@@ -1276,6 +1368,59 @@ GUI newGui = GUI.builder(3)
     .build();
 newGui.open(player);
 ```
+
+### Update Title
+
+The `updateTitle()` method allows you to dynamically change the GUI title while it's open:
+
+```java
+// Update title with new text
+gui.updateTitle("&aNew Title");
+
+// Use case: Real-time updates
+GUI gui = GUI.builder(3)
+    .title("&eLoading...")
+    .build();
+
+gui.open(player);
+
+// Update after loading
+TaskUtil.runSync(() -> {
+    gui.updateTitle("&a&lShop Menu");
+    // Load items...
+}, 40L); // 2 seconds delay
+```
+
+**How it works**:
+- Before initialization: Simply updates the title field (efficient)
+- After initialization:
+  - Stores current viewers and items
+  - Recreates inventory with new title
+  - **Reuses existing GUIHolder** (efficient - no new object creation)
+  - Restores all items
+  - Reopens for all viewers
+- All items and handlers are preserved
+- Viewers experience a brief close/reopen (seamless in most cases)
+
+**Use cases**:
+```java
+// 1. Progress tracking
+gui.updateTitle("&eProgress: " + percent + "%");
+
+// 2. Countdown timer
+gui.updateTitle("&cTime: " + seconds + "s");
+
+// 3. Dynamic player info
+gui.updateTitle("&6Coins: " + playerCoins);
+
+// 4. Real-time clock
+gui.updateTitle("&bTime: " + currentTime);
+
+// 5. Search results
+gui.updateTitle("&bSearch: '" + query + "' &7(" + results.size() + " results)");
+```
+
+**Performance note**: Use sparingly as it recreates the inventory. For frequent updates (like every tick), consider displaying dynamic info in item lore instead.
 
 ### Refresh Method
 
@@ -1646,6 +1791,7 @@ void setMeta(int slot, String key, Object value)
 void open(Player player)
 void close(Player player)
 void refresh()
+GUI updateTitle(String newTitle)
 
 // Accessors
 Inventory getInventory()
@@ -1653,6 +1799,9 @@ int getSize()
 String getTitle()
 UUID getGuiId()
 Set<Player> getViewers()
+
+// Builder Conversion
+GUIBuilder toBuilder()
 ```
 
 ### GUIBuilder
@@ -1802,7 +1951,7 @@ boolean hasSlots()
 static <T> Builder<T> create(GUI gui, int[] contentSlots)
 static Builder<ItemStack> createForItems(GUI gui, int[] contentSlots)
 int getCurrentPage()
-int getTotalPages()
+int getTotalPages()  // ⚠️ Throws IllegalStateException if asyncLoader used without totalPages()
 boolean hasPreviousPage()
 boolean hasNextPage()
 void previousPage(Player player)
@@ -1811,10 +1960,10 @@ void goToPage(int page, Player player)
 void render(Player player)
 
 // Builder
-Builder<T> items(List<T> items)
-Builder<T> asyncLoader(Function<PageRequest, CompletableFuture<List<T>>> loader)
-Builder<T> totalPages(Supplier<Integer> supplier)
-Builder<T> totalPages(int pages)
+Builder<T> items(List<T> items)  // Eager mode - auto-calculates total pages
+Builder<T> asyncLoader(Function<PageRequest, CompletableFuture<List<T>>> loader)  // ⚠️ Requires totalPages()
+Builder<T> totalPages(Supplier<Integer> supplier)  // Required for asyncLoader
+Builder<T> totalPages(int pages)  // Required for asyncLoader
 Builder<T> itemRenderer(Function<T, ItemStack> renderer)
 Builder<T> onItemClick(BiConsumer<T, ClickContext> handler)
 Builder<T> previousButton(int slot, ItemStack item)

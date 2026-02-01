@@ -455,6 +455,7 @@ messages.sendMessage(player, "welcome", ph.toFunction());
 | `fillEmpty()` | `ItemStack` | `GUI` | Fills empty slots |
 | `clear()` | - | `GUI` | Clears all |
 | `refresh()` | - | `GUI` | Refreshes for viewers |
+| `updateTitle()` | `String newTitle` | `GUI` | Updates title dynamically |
 | `open()` | `Player` | `void` | Opens GUI |
 | `close()` | `Player` | `void` | Closes GUI |
 
@@ -472,6 +473,7 @@ messages.sendMessage(player, "welcome", ph.toFunction());
 - Automatically invalidates stale GUIs from plugin reloads
 - Supports per-slot click handlers and disabled states
 - View-only mode prevents all item interactions
+- `updateTitle()` recreates inventory with new title while reusing the same GUIHolder (efficient)
 
 #### Example
 
@@ -498,7 +500,41 @@ gui.slot(13).set(ItemBuilder.of(Material.DIAMOND)
 
 // Open
 gui.open(player);
+
+// Update title dynamically (e.g., for progress tracking)
+TaskUtil.runSync(() -> {
+    gui.updateTitle("&aShop - Sale 50% OFF!");
+}, 40L); // 2 seconds later
 ```
+
+**Dynamic Title Update Example**:
+
+```java
+// Real-time countdown
+GUI countdown = GUI.builder(3)
+    .title("&cTime: 60s")
+    .build();
+
+countdown.open(player);
+
+final int[] seconds = {60};
+TaskUtil.runSyncRepeating(() -> {
+    if (seconds[0] <= 0) {
+        countdown.updateTitle("&a&lComplete!");
+        return;
+    }
+    seconds[0]--;
+    countdown.updateTitle("&cTime: " + seconds[0] + "s");
+}, 0L, 20L);
+```
+
+**Important Notes on `updateTitle()`**:
+- Before GUI initialization: Only updates the internal title field (very efficient)
+- After initialization: Recreates inventory with new title and reopens for viewers
+- **Reuses existing GUIHolder** - no new object allocation (memory efficient)
+- All items, handlers, and metadata are preserved
+- Use for progress bars, countdowns, dynamic stats
+- Avoid excessive updates (e.g., every tick) - use item lore for very frequent updates
 
 ---
 
@@ -749,6 +785,13 @@ gui.slotRange(0, 8).fillAlternating(blackGlass, whiteGlass);
 **`PageRequest`**: Contains `page`, `itemsPerPage`, `offset` for async loading  
 **`PageInfo`**: Contains `currentPage`, `totalPages`, `itemsPerPage` for display
 
+#### Important Notes
+
+- ⚠️ **Lazy Loading Requirement**: When using `asyncLoader()`, you **MUST** call `totalPages()` to set the total page count
+- Calling `getTotalPages()` without setting it will throw `IllegalStateException`
+- For eager loading with `items()`, total pages is calculated automatically
+- For async loading, you need to provide total pages from your data source (e.g., database count)
+
 #### Example (Eager)
 
 ```java
@@ -784,7 +827,7 @@ Pagination<Material> pagination = Pagination.<Material>create(gui, contentSlots)
         List<Material> pageData = fetchFromDatabase(request.offset, request.itemsPerPage);
         return pageData;
     }))
-    .totalPages(10) // Total pages from database count
+    .totalPages(10) // ⚠️ REQUIRED for async loader! Calculate from total item count
     .itemRenderer(mat -> ItemBuilder.of(mat).name("&b" + mat.name()).build())
     .previousButton(48, prevItem)
     .nextButton(50, nextItem)
@@ -794,6 +837,16 @@ Pagination<Material> pagination = Pagination.<Material>create(gui, contentSlots)
     .build();
 
 pagination.render(player);
+
+// Example with dynamic total pages from database
+int totalItems = database.count();
+int itemsPerPage = contentSlots.length;
+int calculatedTotalPages = (int) Math.ceil((double) totalItems / itemsPerPage);
+
+Pagination<Material> paginationFromDB = Pagination.<Material>create(gui, contentSlots)
+    .asyncLoader(request -> loadFromDatabase(request))
+    .totalPages(calculatedTotalPages)  // Calculated from database count
+    .build();
 ```
 
 ---

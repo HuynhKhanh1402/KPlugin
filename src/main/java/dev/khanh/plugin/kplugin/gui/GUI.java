@@ -34,7 +34,7 @@ public class GUI {
     protected final UUID guiId;
     protected final int rows;
     protected final int size;
-    protected final String title;
+    protected String title;
     
     protected GUIHolder holder;
     protected Inventory inventory;
@@ -131,6 +131,20 @@ public class GUI {
     @NotNull
     public static GUI create(int rows, @NotNull String title) {
         return new GUI(rows, title);
+    }
+    
+    /**
+     * Converts this GUI to a builder for modification.
+     * <p>
+     * This creates a new GUIBuilder pre-configured with all settings
+     * from this GUI instance. Useful for creating modified copies.
+     * </p>
+     *
+     * @return a new GUIBuilder with this GUI's configuration
+     */
+    @NotNull
+    public GUIBuilder toBuilder() {
+        return GUIBuilder.from(this);
     }
     
     // ==================== Slot Access Methods ====================
@@ -431,6 +445,58 @@ public class GUI {
     @NotNull
     public GUI setViewOnly(boolean viewOnly) {
         this.viewOnly = viewOnly;
+        return this;
+    }
+    
+    /**
+     * Updates the GUI title and refreshes for all viewers.
+     * <p>
+     * This method recreates the inventory with a new title and
+     * reopens it for all current viewers. All items and handlers
+     * are preserved.
+     * </p>
+     * <p>
+     * <b>Note:</b> This operation will briefly close and reopen
+     * the GUI for all viewers. Use sparingly for performance.
+     * </p>
+     *
+     * @param newTitle the new title (supports &amp; color codes)
+     * @return this GUI
+     */
+    @NotNull
+    public GUI updateTitle(@NotNull String newTitle) {
+        if (!initialized) {
+            // If not initialized yet, just update the title field
+            this.title = ColorUtil.colorize(newTitle);
+            return this;
+        }
+        
+        // Store current viewers
+        List<Player> viewers = new ArrayList<>();
+        for (org.bukkit.entity.HumanEntity viewer : new ArrayList<>(inventory.getViewers())) {
+            if (viewer instanceof Player) {
+                viewers.add((Player) viewer);
+            }
+        }
+        
+        // Update title
+        this.title = ColorUtil.colorize(newTitle);
+        
+        // Store all current items
+        ItemStack[] contents = inventory.getContents().clone();
+        
+        // Recreate inventory with new title (reuse existing holder)
+        this.inventory = Bukkit.createInventory(holder, size, title);
+        holder.setInventory(inventory);
+        
+        // Restore all items
+        inventory.setContents(contents);
+        
+        // Reopen for all viewers
+        for (Player viewer : viewers) {
+            viewer.openInventory(inventory);
+        }
+        
         return this;
     }
     

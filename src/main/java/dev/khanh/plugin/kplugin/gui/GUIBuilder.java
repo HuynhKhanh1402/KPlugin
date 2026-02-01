@@ -43,6 +43,66 @@ public final class GUIBuilder {
     }
     
     /**
+     * Creates a GUIBuilder from an existing GUI.
+     * <p>
+     * Copies all configuration including title, view-only mode, handlers,
+     * items, and slot configurations. This is useful for creating modified
+     * copies of existing GUIs.
+     * </p>
+     * <p>
+     * <b>Note:</b> This method captures the current state of the GUI.
+     * Slot items are cloned, but handlers are referenced directly.
+     * </p>
+     *
+     * @param gui the source GUI
+     * @return a new GUIBuilder with the GUI's configuration
+     */
+    @NotNull
+    public static GUIBuilder from(@NotNull GUI gui) {
+        GUIBuilder builder = new GUIBuilder(gui.getRows());
+        
+        // Copy basic properties
+        builder.title(gui.getTitle());
+        builder.viewOnly(gui.isViewOnly());
+        
+        // Copy handlers (these are referenced, not cloned)
+        if (gui.globalClickHandler != null) {
+            builder.onGlobalClick(gui.globalClickHandler);
+        }
+        if (gui.closeHandler != null) {
+            builder.onClose(gui.closeHandler);
+        }
+        if (gui.openHandler != null) {
+            builder.onOpen(gui.openHandler);
+        }
+        
+        // Copy all slot configurations
+        gui.ensureInitialized();
+        for (int slot = 0; slot < gui.getSize(); slot++) {
+            ItemStack item = gui.getSlotItem(slot);
+            
+            // Only add slots that have items
+            if (item != null && !item.getType().isAir()) {
+                Consumer<ClickContext> handler = gui.getSlotClickHandler(slot);
+                String disabledMsg = gui.getDisabledMessage(slot);
+                
+                if (disabledMsg != null) {
+                    // Disabled slot
+                    builder.slotConfigs.add(new SlotConfig(slot, item.clone(), null, disabledMsg));
+                } else if (handler != null) {
+                    // Slot with click handler
+                    builder.slotConfigs.add(new SlotConfig(slot, item.clone(), handler, null));
+                } else {
+                    // Regular slot
+                    builder.slotConfigs.add(new SlotConfig(slot, item.clone(), null, null));
+                }
+            }
+        }
+        
+        return builder;
+    }
+    
+    /**
      * Sets the title.
      *
      * @param title the title (supports &amp; codes)
@@ -225,6 +285,75 @@ public final class GUIBuilder {
     @NotNull
     public GUIBuilder fillEmpty(@NotNull ItemBuilder builder) {
         return fillEmpty(builder.build());
+    }
+    
+    /**
+     * Removes a slot configuration at the specified index.
+     *
+     * @param slot the slot index to remove
+     * @return this builder for chaining
+     */
+    @NotNull
+    public GUIBuilder removeSlot(int slot) {
+        slotConfigs.removeIf(config -> config.slot == slot);
+        return this;
+    }
+    
+    /**
+     * Removes all slot configurations in the specified range (inclusive).
+     *
+     * @param start the start slot
+     * @param end the end slot
+     * @return this builder for chaining
+     */
+    @NotNull
+    public GUIBuilder removeSlotRange(int start, int end) {
+        slotConfigs.removeIf(config -> config.slot >= start && config.slot <= end);
+        return this;
+    }
+    
+    /**
+     * Removes all slot configurations.
+     *
+     * @return this builder for chaining
+     */
+    @NotNull
+    public GUIBuilder clearSlots() {
+        slotConfigs.clear();
+        return this;
+    }
+    
+    /**
+     * Creates a copy of this builder.
+     * <p>
+     * Creates a new GUIBuilder with the same configuration.
+     * Slot items are cloned, but handlers are referenced directly.
+     * </p>
+     *
+     * @return a new GUIBuilder copy
+     */
+    @NotNull
+    public GUIBuilder copy() {
+        GUIBuilder copy = new GUIBuilder(rows);
+        copy.title = this.title;
+        copy.viewOnly = this.viewOnly;
+        copy.globalClickHandler = this.globalClickHandler;
+        copy.closeHandler = this.closeHandler;
+        copy.openHandler = this.openHandler;
+        copy.borderItem = this.borderItem != null ? this.borderItem.clone() : null;
+        copy.fillItem = this.fillItem != null ? this.fillItem.clone() : null;
+        
+        // Deep copy slot configs
+        for (SlotConfig config : this.slotConfigs) {
+            copy.slotConfigs.add(new SlotConfig(
+                config.slot,
+                config.item.clone(),
+                config.clickHandler,
+                config.disabledMessage
+            ));
+        }
+        
+        return copy;
     }
     
     /**

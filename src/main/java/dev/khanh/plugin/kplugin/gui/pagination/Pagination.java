@@ -125,10 +125,22 @@ public final class Pagination<T> {
 
     /**
      * Gets the total number of pages.
+     * <p>
+     * <b>Important:</b> When using async loading ({@link Builder#asyncLoader(Function)}),
+     * you must call {@link Builder#totalPages(int)} or {@link Builder#totalPages(Supplier)}
+     * before this method can be used. Otherwise, an {@link IllegalStateException} will be thrown.
+     * </p>
      *
      * @return the total pages
+     * @throws IllegalStateException if async loader is used without setting total pages
      */
     public int getTotalPages() {
+        if (asyncLoader != null && totalPagesSupplier == null && items == null) {
+            throw new IllegalStateException(
+                "Total pages not set for async pagination. " +
+                "When using asyncLoader(), you must call totalPages() to set the total page count."
+            );
+        }
         return totalPages;
     }
     
@@ -199,11 +211,23 @@ public final class Pagination<T> {
     
     /**
      * Renders the current page.
+     * <p>
+     * For async pagination, ensures that total pages is set before rendering.
+     * </p>
      *
      * @param player the viewer
+     * @throws IllegalStateException if async loader is used without setting total pages
      */
     public void render(@NotNull Player player) {
         currentViewer = player;
+        
+        // Validate async pagination setup
+        if (asyncLoader != null && totalPagesSupplier == null && items == null) {
+            throw new IllegalStateException(
+                "Total pages not set for async pagination. " +
+                "When using asyncLoader(), you must call totalPages() to set the total page count."
+            );
+        }
         
         // Calculate total pages for sync data
         if (items != null && totalPagesSupplier == null) {
