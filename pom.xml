@@ -36,6 +36,8 @@
                 <version>3.6.0</version>
                 <configuration>
                     <failOnError>false</failOnError>
+                    <source>8</source>
+                    <additionalOptions>-html5</additionalOptions>
                 </configuration>
                 <executions>
                     <execution>

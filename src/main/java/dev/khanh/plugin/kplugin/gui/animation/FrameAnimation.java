@@ -111,7 +111,7 @@ public final class FrameAnimation {
     /**
      * Adds a frame to the animation.
      *
-     * @param frame the frame data (slot -> ItemStack mapping)
+     * @param frame the frame data (slot {@literal ->} ItemStack mapping)
      * @return this animation for chaining
      */
     @NotNull

@@ -60,7 +60,7 @@ public class GUI {
     /** Click handlers per slot */
     protected final Map<Integer, Consumer<ClickContext>> clickHandlers;
     
-    /** Disabled slot messages (slot -> message) */
+    /** Disabled slot messages (slot {@literal ->} message) */
     protected final Map<Integer, String> disabledSlots;
     
     /** Per-slot metadata storage */
