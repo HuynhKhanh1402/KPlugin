@@ -8,6 +8,13 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
  */
 public class ColorUtil {
     /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
+    private ColorUtil() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
+
+    /**
      * Converts a string with legacy color codes into a colorized string.
      *
      * @param input the string containing legacy color codes

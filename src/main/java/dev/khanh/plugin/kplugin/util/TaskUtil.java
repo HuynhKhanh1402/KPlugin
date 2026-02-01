@@ -27,6 +27,12 @@ import java.util.function.Consumer;
  * unless absolutely necessary for long-duration tasks.
  */
 public class TaskUtil {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
+    private TaskUtil() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
 
     // ==================== Sync Methods (Global Region) ====================
 

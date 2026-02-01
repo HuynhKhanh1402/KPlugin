@@ -38,7 +38,13 @@ import java.util.Map;
  * @author KhanhHuynh
  */
 public class SoundUtil {
-    
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
+    private SoundUtil() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
+
     private static final Map<String, String> LEGACY_TO_MODERN = new HashMap<>();
     
     static {

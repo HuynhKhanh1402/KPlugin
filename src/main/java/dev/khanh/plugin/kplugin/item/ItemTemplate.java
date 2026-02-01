@@ -507,30 +507,60 @@ public final class ItemTemplate {
             this.material = material;
         }
         
+        /**
+         * Sets the display name for the item.
+         *
+         * @param name the display name (null to remove)
+         * @return this builder
+         */
         @NotNull
         public Builder name(@Nullable String name) {
             this.name = name;
             return this;
         }
         
+        /**
+         * Sets the lore lines for the item.
+         *
+         * @param lines the lore lines
+         * @return this builder
+         */
         @NotNull
         public Builder lore(@NotNull String... lines) {
             this.lore = new ArrayList<>(Arrays.asList(lines));
             return this;
         }
         
+        /**
+         * Sets the lore lines for the item.
+         *
+         * @param lines the lore lines
+         * @return this builder
+         */
         @NotNull
         public Builder lore(@NotNull List<String> lines) {
             this.lore = new ArrayList<>(lines);
             return this;
         }
         
+        /**
+         * Sets the item stack size.
+         *
+         * @param amount the stack size (1-64)
+         * @return this builder
+         */
         @NotNull
         public Builder amount(int amount) {
             this.amount = amount;
             return this;
         }
         
+        /**
+         * Adds a single slot where this item should be placed.
+         *
+         * @param slot the slot index
+         * @return this builder
+         */
         @NotNull
         public Builder slot(int slot) {
             if (this.slots == null) {
@@ -540,6 +570,12 @@ public final class ItemTemplate {
             return this;
         }
         
+        /**
+         * Adds multiple slots where this item should be placed.
+         *
+         * @param slots the slot indices
+         * @return this builder
+         */
         @NotNull
         public Builder slots(int... slots) {
             if (this.slots == null) {
@@ -551,6 +587,13 @@ public final class ItemTemplate {
             return this;
         }
         
+        /**
+         * Adds an enchantment to the item.
+         *
+         * @param enchant the enchantment type
+         * @param level the enchantment level
+         * @return this builder
+         */
         @NotNull
         public Builder enchant(@NotNull Enchantment enchant, int level) {
             if (this.enchantments == null) {
@@ -560,6 +603,12 @@ public final class ItemTemplate {
             return this;
         }
         
+        /**
+         * Adds item flags to hide attributes, enchantments, etc.
+         *
+         * @param flags the item flags to add
+         * @return this builder
+         */
         @NotNull
         public Builder flags(@NotNull ItemFlag... flags) {
             if (this.flags == null) {
@@ -569,40 +618,79 @@ public final class ItemTemplate {
             return this;
         }
         
+        /**
+         * Sets the custom model data for resource pack models.
+         *
+         * @param data the custom model data value
+         * @return this builder
+         */
         @NotNull
         public Builder customModelData(int data) {
             this.customModelData = data;
             return this;
         }
         
+        /**
+         * Sets whether the item should have a glow effect.
+         *
+         * @param glow true to enable glow, false to disable
+         * @return this builder
+         */
         @NotNull
         public Builder glow(boolean glow) {
             this.glow = glow;
             return this;
         }
         
+        /**
+         * Enables the glow effect on the item.
+         *
+         * @return this builder
+         */
         @NotNull
         public Builder glow() {
             return glow(true);
         }
         
+        /**
+         * Sets whether the item should be unbreakable.
+         *
+         * @param unbreakable true to make unbreakable, false otherwise
+         * @return this builder
+         */
         @NotNull
         public Builder unbreakable(boolean unbreakable) {
             this.unbreakable = unbreakable;
             return this;
         }
         
+        /**
+         * Makes the item unbreakable.
+         *
+         * @return this builder
+         */
         @NotNull
         public Builder unbreakable() {
             return unbreakable(true);
         }
         
+        /**
+         * Sets the skull texture value for player heads.
+         *
+         * @param value the base64 skull texture value (null to clear)
+         * @return this builder
+         */
         @NotNull
         public Builder skull(@Nullable String value) {
             this.skullValue = value;
             return this;
         }
         
+        /**
+         * Builds and returns the ItemTemplate instance.
+         *
+         * @return the constructed ItemTemplate
+         */
         @NotNull
         public ItemTemplate build() {
             return new ItemTemplate(this);

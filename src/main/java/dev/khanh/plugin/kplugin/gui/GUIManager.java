@@ -204,6 +204,8 @@ public class GUIManager implements Listener {
     
     /**
      * Handles inventory click events for GUIs.
+     *
+     * @param event the inventory click event
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onInventoryClick(@NotNull InventoryClickEvent event) {
@@ -263,6 +265,8 @@ public class GUIManager implements Listener {
     
     /**
      * Prevents item dragging in GUIs.
+     *
+     * @param event the inventory drag event
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onInventoryDrag(@NotNull InventoryDragEvent event) {
@@ -297,6 +301,8 @@ public class GUIManager implements Listener {
     
     /**
      * Handles inventory close events.
+     *
+     * @param event the inventory close event
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInventoryClose(@NotNull InventoryCloseEvent event) {
@@ -314,6 +320,8 @@ public class GUIManager implements Listener {
     
     /**
      * Handles inventory open events for tracking.
+     *
+     * @param event the inventory open event
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInventoryOpen(@NotNull InventoryOpenEvent event) {
@@ -331,6 +339,8 @@ public class GUIManager implements Listener {
     
     /**
      * Cleans up player data on disconnect.
+     *
+     * @param event the player quit event
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(@NotNull PlayerQuitEvent event) {

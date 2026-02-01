@@ -221,6 +221,14 @@ public final class SlotHandle {
         return gui.getSlotMeta(slot, key);
     }
 
+    /**
+     * Retrieves metadata associated with this slot, or returns a default value if not found.
+     *
+     * @param <T> the type of the metadata value
+     * @param key the metadata key
+     * @param defaultValue the value to return if metadata is not found
+     * @return the metadata value or the default value
+     */
     @NotNull
     public <T> T getMeta(@NotNull String key, @NotNull T defaultValue) {
         T value = getMeta(key);

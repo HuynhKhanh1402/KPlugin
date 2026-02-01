@@ -21,6 +21,13 @@ public class InstanceManager {
     private static final Map<Class<?>, Object> INSTANCE_MAP = new ConcurrentHashMap<>();
 
     /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
+    private InstanceManager() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
+
+    /**
      * Removes all instances from the {@code INSTANCE_MAP}, effectively clearing
      * all managed singleton instances.
      */

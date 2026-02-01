@@ -29,22 +29,36 @@ public abstract class KCommand implements CommandExecutor, TabCompleter {
     @Getter
     @Nullable
     private final KCommand parent;
+    
+    /** List of subcommands registered under this command. */
     protected final List<KCommand> subCommands;
+    
+    /** The primary name of this command. */
     @Getter
     @NotNull
     protected final String name;
+    
+    /** List of aliases for this command. */
     @Getter
     @NotNull
     protected final List<String> alias;
+    
+    /** The permission required to execute this command. */
     @Getter
     @NotNull
     protected final String permission;
+    
+    /** A brief description of what this command does. */
     @Getter
     @NotNull
     protected final String description;
+    
+    /** The usage string shown when command syntax is incorrect. */
     @Getter
     @NotNull
     protected final String usage;
+    
+    /** The Bukkit CommandMap used for registering commands dynamically. */
     @Getter
     protected static CommandMap commandMap;
 

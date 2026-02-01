@@ -30,8 +30,13 @@ import java.util.Set;
  */
 public abstract class GenericYamlFile {
     private final KPlugin plugin;
+    
+    /** The file representing this YAML configuration on disk. */
     protected final File file;
+    
     private final String configVersionKey;
+    
+    /** The YamlConfiguration instance for this file. */
     protected YamlConfiguration yaml;
     private final @Nullable YamlConfiguration defaultYaml;
 

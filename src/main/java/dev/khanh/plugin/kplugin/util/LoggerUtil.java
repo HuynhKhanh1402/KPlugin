@@ -11,6 +11,13 @@ import java.util.Objects;
  */
 public class LoggerUtil {
     /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
+    private LoggerUtil() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
+
+    /**
      * Whether debug mode is enabled.
      */
     private static boolean debugEnabled = false;

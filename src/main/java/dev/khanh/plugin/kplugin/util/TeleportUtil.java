@@ -22,6 +22,13 @@ import java.util.concurrent.CompletableFuture;
  */
 public class TeleportUtil {
     /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
+    private TeleportUtil() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
+
+    /**
      * Teleports an entity asynchronously to the specified location.
      * <p>
      * Platform-specific behavior:

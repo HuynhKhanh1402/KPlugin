@@ -14,6 +14,13 @@ import org.bukkit.plugin.java.JavaPlugin;
  * only one instance of a plugin is active at a time. It also provides an abstract interface for enabling and disabling the plugin.
  */
 public abstract class KPlugin extends JavaPlugin {
+    /**
+     * Constructs a new KPlugin instance.
+     * This constructor is protected as KPlugin is an abstract class meant to be extended by plugin implementations.
+     */
+    protected KPlugin() {
+    }
+
     private static KPlugin kInstance;
     private static FoliaLib foliaLib;
 

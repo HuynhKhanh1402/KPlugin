@@ -31,14 +31,28 @@ public class GUI {
     
     // ==================== Core Fields ====================
     
+    /** Unique identifier for this GUI instance. */
     protected final UUID guiId;
+    
+    /** Number of rows in this GUI (1-6). */
     protected final int rows;
+    
+    /** Total size of the inventory (rows * 9). */
     protected final int size;
+    
+    /** The title displayed at the top of the GUI. */
     protected String title;
     
+    /** The GUIHolder instance containing manager UUID and GUI validation data. */
     protected GUIHolder holder;
+    
+    /** The Bukkit inventory instance. */
     protected Inventory inventory;
+    
+    /** Whether this GUI has been initialized. */
     protected boolean initialized;
+    
+    /** Whether this GUI is view-only (blocks all item interactions). */
     protected boolean viewOnly;
     
     // ==================== Slot Data ====================

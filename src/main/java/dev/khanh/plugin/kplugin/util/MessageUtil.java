@@ -14,6 +14,13 @@ import java.util.function.Function;
  * Must be initialized with a {@link MessageFile} before use.
  */
 public class MessageUtil {
+    /**
+     * Private constructor to prevent instantiation of this utility class.
+     */
+    private MessageUtil() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
+
     private static MessageFile messageFile;
 
     /**
