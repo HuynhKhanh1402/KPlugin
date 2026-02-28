@@ -1,1913 +1,1183 @@
-# KPlugin Framework - Complete API Reference
+# KPlugin API Reference
 
-> **Version**: 3.2.0  
-> **Compatibility**: Java 8+, Minecraft 1.16.5+  
-> **Last Updated**: January 30, 2026
+Complete API reference for all packages, classes, methods, and fields in the KPlugin framework.
+
+**Root package:** `dev.khanh.plugin.kplugin`
 
 ---
 
 ## Table of Contents
 
-1. [Core Package](#core-package)
-2. [Command System](#command-system)
-3. [Configuration Files](#configuration-files)
-4. [GUI System](#gui-system)
-5. [Instance Management](#instance-management)
-6. [Item System](#item-system)
-7. [Placeholder System](#placeholder-system)
-8. [Utility Classes](#utility-classes)
-9. [Important Warnings & Best Practices](#important-warnings--best-practices)
+- [dev.khanh.plugin.kplugin](#devkhanhpluginkplugin)
+- [dev.khanh.plugin.kplugin.command](#command)
+- [dev.khanh.plugin.kplugin.file](#file)
+- [dev.khanh.plugin.kplugin.gui](#gui)
+- [dev.khanh.plugin.kplugin.gui.context](#guicontext)
+- [dev.khanh.plugin.kplugin.gui.holder](#guiholder)
+- [dev.khanh.plugin.kplugin.gui.slot](#guislot)
+- [dev.khanh.plugin.kplugin.gui.animation](#guianimation)
+- [dev.khanh.plugin.kplugin.gui.pagination](#guipagination)
+- [dev.khanh.plugin.kplugin.instance](#instance)
+- [dev.khanh.plugin.kplugin.item](#item)
+- [dev.khanh.plugin.kplugin.placeholder](#placeholder)
+- [dev.khanh.plugin.kplugin.task](#task)
+- [dev.khanh.plugin.kplugin.util](#util)
 
 ---
 
-## Core Package
+## dev.khanh.plugin.kplugin
 
-### `KPlugin` (Abstract Class)
+### `abstract class KPlugin extends JavaPlugin`
 
-**Package**: `dev.khanh.plugin.kplugin`
+Abstract base class for Spigot plugins. Handles lifecycle and singleton enforcement.
 
-**Purpose**: Base class for all plugins using the KPlugin framework. Manages lifecycle, singleton enforcement, and FoliaLib initialization.
+#### Fields
 
-**Inheritance**: `extends JavaPlugin`
+| Modifier | Type | Name | Description |
+|---|---|---|---|
+| `private static` | `KPlugin` | `kInstance` | Current active plugin instance |
+| `private static` | `FoliaLib` | `foliaLib` | FoliaLib instance for scheduler operations |
 
-#### Usage Pattern
+#### Constructors
 
-```java
-public class MyPlugin extends KPlugin {
-    @Override
-    protected void enable() {
-        // Your plugin enable logic
-    }
-    
-    @Override
-    protected void disable() {
-        // Your plugin disable logic
-    }
-}
-```
+| Modifier | Signature |
+|---|---|
+| `protected` | `KPlugin()` |
 
-#### Public Methods
+#### Methods
 
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `enable()` | `void` | Override this instead of `onEnable()` |
-| `disable()` | `void` | Override this instead of `onDisable()` |
-| `getInstance()` | `KPlugin` | Get the current plugin instance |
-| `getFoliaLib()` | `FoliaLib` | Get the FoliaLib scheduler instance |
-
-#### Important Notes
-
-- ⚠️ **Singleton Enforcement**: Only one instance per plugin class is allowed via `InstanceManager`
-- The framework calls `onEnable()` internally, which prints author branding and registers the instance
-- Always call `super.enable()` and `super.disable()` if you override them
-- FoliaLib is initialized automatically during `onEnable()`
-- All instances are cleared from `InstanceManager` on disable
-
-#### Example
-
-```java
-public class MyPlugin extends KPlugin {
-    private GUIManager guiManager;
-    
-    @Override
-    protected void enable() {
-        LoggerUtil.info("MyPlugin enabled!");
-        guiManager = new GUIManager(this);
-        // Register commands, listeners, etc.
-    }
-    
-    @Override
-    protected void disable() {
-        if (guiManager != null) {
-            guiManager.shutdown();
-        }
-        LoggerUtil.info("MyPlugin disabled!");
-    }
-}
-```
+| Modifier | Return | Method | Description |
+|---|---|---|---|
+| `public` | `void` | `onEnable()` | Lifecycle callback. Sets singleton, creates FoliaLib, registers in InstanceManager, calls `enable()` |
+| `public` | `void` | `onDisable()` | Lifecycle callback. Clears InstanceManager, calls `disable()` |
+| `public abstract` | `void` | `enable()` | Override to define plugin enable behavior |
+| `public abstract` | `void` | `disable()` | Override to define plugin disable behavior |
+| `public static` | `KPlugin` | `getKInstance()` | Returns the active plugin instance (nullable) |
+| `public static` | `FoliaLib` | `getFoliaLib()` | Returns the FoliaLib instance |
+| `private` | `void` | `printAuthorInfo()` | Prints author branding to console |
 
 ---
 
-## Command System
+## command
 
-### `KCommand` (Abstract Class)
+### `abstract class KCommand implements CommandExecutor, TabCompleter`
 
-**Package**: `dev.khanh.plugin.kplugin.command`
+Abstract command class with subcommand routing, permission checking, and error handling.
 
-**Purpose**: Reflection-based command system with dynamic registration and subcommand tree support.
+#### Fields
 
-**Inheritance**: `implements CommandExecutor, TabCompleter`
+| Modifier | Type | Name | Description |
+|---|---|---|---|
+| `@Getter @Nullable private final` | `KCommand` | `parent` | Parent command (null for root) |
+| `protected final` | `List<KCommand>` | `subCommands` | Registered subcommands |
+| `@Getter @NotNull protected final` | `String` | `name` | Primary command name |
+| `@Getter @NotNull protected final` | `List<String>` | `alias` | Command aliases |
+| `@Getter @NotNull protected final` | `String` | `permission` | Required permission (empty = none) |
+| `@Getter @NotNull protected final` | `String` | `description` | Command description |
+| `@Getter @NotNull protected final` | `String` | `usage` | Usage syntax string |
+| `@Getter protected static` | `CommandMap` | `commandMap` | Bukkit CommandMap (initialized via reflection) |
 
-#### Constructor
+#### Constructors
 
-```java
-protected KCommand(String name)
-protected KCommand(String name, String... aliases)
-```
+| Signature | Description |
+|---|---|
+| `KCommand(String name, KCommand parent, List<String> alias, String permission, String description, String usage)` | Full constructor |
+| `KCommand(String name, List<String> alias, String permission, String description, String usage)` | Without parent |
+| `KCommand(String name, String permission, String description, String usage)` | Without parent/alias |
+| `KCommand(String name, KCommand parent, String permission, String description, String usage)` | Without alias |
+| `KCommand(String name, KCommand parent, String permission)` | Minimal with parent |
+| `KCommand(String name, KCommand parent, String description, String usage)` | Parent + desc/usage |
+| `KCommand(String name, KCommand parent)` | Name + parent only |
 
-#### Public Fields
+#### Methods
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `parent` | `KCommand` | Parent command reference |
-| `name` | `String` | Command name |
-| `aliases` | `List<String>` | Command aliases |
-| `permission` | `String` | Required permission (nullable) |
-| `description` | `String` | Command description |
-| `usage` | `String` | Usage syntax |
-
-#### Abstract Methods (Must Implement)
-
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `onCommand()` | `CommandSender sender, List<String> args` | Handler for all senders |
-| `onCommand()` | `Player player, List<String> args` | Handler for player senders |
-| `onTabComplete()` | `CommandSender sender, List<String> args` | Tab completion for all |
-| `onTabComplete()` | `Player player, List<String> args` | Tab completion for players |
-
-#### Public Methods
-
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `addSubCommand(KCommand)` | `KCommand` | Adds a subcommand to the tree |
-| `registerCommand(KPlugin)` | `void` | Registers command via reflection |
-| `getNoPermissionMessage()` | `String` | Returns no-permission message |
-| `getSubCommand(String)` | `KCommand` | Gets subcommand by name/alias |
-
-#### Important Notes
-
-- ⚠️ **Dual Overload Pattern**: You MUST implement BOTH `onCommand()` methods - one for `CommandSender`, one for `Player`
-- ⚠️ **Manual Registration**: Call `registerCommand(plugin)` explicitly - no auto-registration
-- The framework routes to the correct handler based on sender type automatically
-- Uses reflection to access Bukkit's internal `CommandMap` and create `PluginCommand` instances
-- Supports nested subcommand tree structure with parent-child relationships
-
-#### Example
-
-```java
-public class TeleportCommand extends KCommand {
-    
-    public TeleportCommand() {
-        super("teleport", "tp");
-        this.permission = "myplugin.teleport";
-        this.description = "Teleport to a location";
-        this.usage = "/teleport <x> <y> <z>";
-    }
-    
-    @Override
-    public void onCommand(CommandSender sender, List<String> args) {
-        if (!(sender instanceof Player)) {
-            sender.sendMessage("Only players can use this command!");
-            return;
-        }
-        // Automatically routed to player handler below
-    }
-    
-    @Override
-    public void onCommand(Player player, List<String> args) {
-        if (args.size() != 3) {
-            player.sendMessage(usage);
-            return;
-        }
-        
-        double x = Double.parseDouble(args.get(0));
-        double y = Double.parseDouble(args.get(1));
-        double z = Double.parseDouble(args.get(2));
-        
-        Location loc = new Location(player.getWorld(), x, y, z);
-        TeleportUtil.teleport(player, loc).thenAccept(result -> {
-            if (result) {
-                MessageUtil.sendMessageWithPrefix(player, "&aTeleported!");
-            }
-        });
-    }
-    
-    @Override
-    public List<String> onTabComplete(CommandSender sender, List<String> args) {
-        return Collections.emptyList();
-    }
-    
-    @Override
-    public List<String> onTabComplete(Player player, List<String> args) {
-        if (args.size() == 1) {
-            return Arrays.asList("100", "64", "0");
-        }
-        return Collections.emptyList();
-    }
-}
-
-// Registration:
-TeleportCommand tpCmd = new TeleportCommand();
-tpCmd.registerCommand(this);
-```
-
-#### Subcommand Example
-
-```java
-public class AdminCommand extends KCommand {
-    public AdminCommand() {
-        super("admin");
-        
-        // Add subcommands
-        addSubCommand(new ReloadSubCommand());
-        addSubCommand(new DebugSubCommand());
-    }
-    
-    @Override
-    public void onCommand(CommandSender sender, List<String> args) {
-        sender.sendMessage("Use /admin <reload|debug>");
-    }
-    
-    // Implement other required methods...
-}
-```
+| Modifier | Return | Method | Description |
+|---|---|---|---|
+| `public final` | `KCommand` | `addSubCommand(KCommand subCommand)` | Registers a subcommand. Throws on duplicates |
+| `public final` | `void` | `registerCommand(JavaPlugin plugin)` | Dynamically registers the command (no plugin.yml needed) |
+| `public abstract` | `void` | `onCommand(CommandSender sender, List<String> args)` | Execute for any sender |
+| `public abstract` | `void` | `onCommand(Player player, List<String> args)` | Execute for Player sender |
+| `@Nullable public` | `List<String>` | `onTabComplete(CommandSender sender, List<String> args)` | Tab-complete for any sender. Default: subcommand names |
+| `@Nullable public` | `List<String>` | `onTabComplete(Player player, List<String> args)` | Tab-complete for Player. Default: delegates to sender version |
+| `public abstract @NotNull` | `String` | `getNoPermissionMessage()` | Message shown when permission denied |
+| `protected static` | `String` | `replacePlaceholders(String message, Map<String, String> replaceMap)` | Simple placeholder replacement |
+| `protected` | `boolean` | `hasPermission(CommandSender sender)` | Checks sender has required permission |
+| `protected` | `boolean` | `hasPermission(Player player)` | Checks player has required permission |
+| `public` | `KCommand` | `getSubCommand(String name, boolean checkAlias)` | Finds subcommand by name/alias |
+| `public final` | `boolean` | `onCommand(CommandSender, Command, String, String[])` | Bukkit interface (auto-routes) |
+| `public final` | `List<String>` | `onTabComplete(CommandSender, Command, String, String[])` | Bukkit interface (auto-routes) |
 
 ---
 
-## Configuration Files
+## file
 
-### `GenericYamlFile` (Abstract Class)
+### `abstract class GenericYamlFile`
 
-**Package**: `dev.khanh.plugin.kplugin.file`
+Generic YAML file handler with version-based auto-migration.
 
-**Purpose**: Base class for YAML configuration files with version tracking and automatic migration support.
+#### Fields
 
-#### Constructor
+| Modifier | Type | Name | Description |
+|---|---|---|---|
+| `private final` | `KPlugin` | `plugin` | Plugin instance |
+| `protected final` | `File` | `file` | File on disk |
+| `private final` | `String` | `configVersionKey` | YAML key for version tracking |
+| `protected` | `YamlConfiguration` | `yaml` | Current loaded YAML |
+| `private final @Nullable` | `YamlConfiguration` | `defaultYaml` | Default YAML from JAR resource |
 
-```java
-protected GenericYamlFile(KPlugin plugin, String fileName, String resourcePath)
-protected GenericYamlFile(KPlugin plugin, String fileName, String resourcePath, String versionKey)
-```
+#### Constructors
 
-#### Public Methods
+| Signature | Description |
+|---|---|
+| `GenericYamlFile(KPlugin plugin, File file, @Nullable String resourcePath)` | Default version key `"version"` |
+| `GenericYamlFile(KPlugin plugin, File file, @Nullable String resourcePath, String configVersionKey)` | Custom version key |
 
-| Method                           | Return Type | Description |
-|----------------------------------|-------------|-------------|
-| `save()`                         | `void` | Saves YAML to disk |
-| `reload()`                       | `void` | Reloads YAML from disk |
-| `update(int oldVer, int newVer)` | `void` | Override for version migrations |
-| `getFile()`                      | `File` | Returns file path |
-| `getConfig()`                    | `FileConfiguration` | Returns active YAML config |
-| `getDefaultConfig()`             | `FileConfiguration` | Returns default resource YAML |
+#### Methods
 
-Plus all standard YAML getters: `getString()`, `getInt()`, `getBoolean()`, `getStringList()`, `getConfigurationSection()`, etc.
-
-#### Important Notes
-
-- Default version key is `"version"` (configurable via constructor)
-- Auto-copies default resource from JAR if file doesn't exist
-- Calls `update()` method when `defaultVersion > fileVersion`
-- Thread-safe for reading
-
-#### Example
-
-```java
-public class DatabaseConfig extends GenericYamlFile {
-    
-    public DatabaseConfig(KPlugin plugin) {
-        super(plugin, "database.yml", "database.yml");
-    }
-    
-    @Override
-    protected void update(int oldVersion, int newVersion) {
-        if (oldVersion < 2) {
-            // Migrate from v1 to v2
-            getConfig().set("new-option", "default-value");
-            LoggerUtil.info("Migrated database.yml from v1 to v2");
-        }
-        
-        if (oldVersion < 3) {
-            // Migrate from v2 to v3
-            getConfig().set("another-option", true);
-            LoggerUtil.info("Migrated database.yml from v2 to v3");
-        }
-        
-        // Framework auto-saves after this method
-    }
-    
-    // Convenience getters
-    public String getHost() {
-        return getString("mysql.host", "localhost");
-    }
-    
-    public int getPort() {
-        return getInt("mysql.port", 3306);
-    }
-}
-```
-
----
-
-### `AbstractConfigFile` (Abstract Class)
-
-**Package**: `dev.khanh.plugin.kplugin.file`
-
-**Purpose**: Specialized config file for `config.yml` with hardcoded version key.
-
-**Inheritance**: `extends GenericYamlFile`
-
-#### Constructor
-
-```java
-protected AbstractConfigFile(KPlugin plugin)
-```
-
-#### Important Notes
-
-- ⚠️ Hardcoded file name: `config.yml`
-- ⚠️ Hardcoded version key: `"config-version"` (differs from GenericYamlFile's `"version"`)
-- Always uses `config.yml` from plugin data folder and JAR resource
-
-#### Example
-
-```java
-public class MainConfig extends AbstractConfigFile {
-    
-    public MainConfig(KPlugin plugin) {
-        super(plugin);
-    }
-    
-    @Override
-    protected void update(int oldVersion, int newVersion) {
-        if (oldVersion < 2) {
-            getConfig().set("enable-feature-x", true);
-        }
-    }
-    
-    public boolean isFeatureXEnabled() {
-        return getBoolean("enable-feature-x", false);
-    }
-}
-```
+| Modifier | Return | Method | Description |
+|---|---|---|---|
+| `public` | `void` | `save()` | Save to disk. Throws `IOException` |
+| `public` | `void` | `reload()` | Reload from disk |
+| `protected abstract` | `void` | `update(int oldVersion, int newVersion)` | Called on version upgrade |
+| `public` | `File` | `getFile()` | Returns the file |
+| `public` | `YamlConfiguration` | `getYaml()` | Returns YAML config |
+| `public @Nullable` | `YamlConfiguration` | `getDefaultYaml()` | Returns default YAML |
+| `public` | `Set<String>` | `getKeys(boolean deep)` | Delegated to YAML |
+| `public` | `Map<String, Object>` | `getValues(boolean deep)` | Delegated to YAML |
+| `public` | `boolean` | `contains(String path)` | Delegated to YAML |
+| `public` | `boolean` | `contains(String path, boolean ignoreDefault)` | Delegated to YAML |
+| `public` | `boolean` | `isSet(String path)` | Delegated to YAML |
+| `public @Nullable` | `Object` | `get(String path)` | Delegated to YAML |
+| `public @Nullable` | `Object` | `get(String path, Object def)` | Delegated to YAML |
+| `public` | `void` | `set(String path, Object value)` | Delegated to YAML |
+| `public` | `ConfigurationSection` | `createSection(String path)` | Delegated to YAML |
+| `public` | `ConfigurationSection` | `createSection(String path, Map<?, ?> map)` | Delegated to YAML |
+| `public @Nullable` | `String` | `getString(String path)` | Delegated to YAML |
+| `public @Nullable` | `String` | `getString(String path, String def)` | Delegated to YAML |
+| `public` | `boolean` | `isString(String path)` | Delegated to YAML |
+| `public` | `int` | `getInt(String path)` | Delegated to YAML |
+| `public` | `int` | `getInt(String path, int def)` | Delegated to YAML |
+| `public` | `boolean` | `isInt(String path)` | Delegated to YAML |
+| `public` | `boolean` | `getBoolean(String path)` | Delegated to YAML |
+| `public` | `boolean` | `getBoolean(String path, boolean def)` | Delegated to YAML |
+| `public` | `boolean` | `isBoolean(String path)` | Delegated to YAML |
+| `public` | `double` | `getDouble(String path)` | Delegated to YAML |
+| `public` | `double` | `getDouble(String path, double def)` | Delegated to YAML |
+| `public` | `boolean` | `isDouble(String path)` | Delegated to YAML |
+| `public` | `long` | `getLong(String path)` | Delegated to YAML |
+| `public` | `long` | `getLong(String path, long def)` | Delegated to YAML |
+| `public` | `boolean` | `isLong(String path)` | Delegated to YAML |
+| `public @Nullable` | `List<?>` | `getList(String path)` | Delegated to YAML |
+| `public @Nullable` | `List<?>` | `getList(String path, List<?> def)` | Delegated to YAML |
+| `public` | `boolean` | `isList(String path)` | Delegated to YAML |
+| `public @NotNull` | `List<String>` | `getStringList(String path)` | Delegated to YAML |
+| `public @Nullable` | `<T> T` | `getObject(String path, Class<T> clazz)` | Delegated to YAML |
+| `public @Nullable` | `<T> T` | `getObject(String path, Class<T> clazz, T def)` | Delegated to YAML |
+| `public @Nullable` | `ItemStack` | `getItemStack(String path)` | Delegated to YAML |
+| `public @Nullable` | `ItemStack` | `getItemStack(String path, ItemStack def)` | Delegated to YAML |
+| `public` | `boolean` | `isItemStack(String path)` | Delegated to YAML |
+| `public @Nullable` | `Location` | `getLocation(String path)` | Delegated to YAML |
+| `public @Nullable` | `Location` | `getLocation(String path, Location def)` | Delegated to YAML |
+| `public` | `boolean` | `isLocation(String path)` | Delegated to YAML |
+| `public @Nullable` | `ConfigurationSection` | `getConfigurationSection(String path)` | Delegated to YAML |
+| `public` | `boolean` | `isConfigurationSection(String path)` | Delegated to YAML |
 
 ---
 
-### `MessageFile` (Class)
+### `abstract class AbstractConfigFile extends GenericYamlFile`
 
-**Package**: `dev.khanh.plugin.kplugin.file`
+Convenience wrapper for `config.yml` with version key `"config-version"`.
 
-**Purpose**: Manages `messages.yml` for multilingual support with auto-updating missing keys.
+#### Constructors
 
-#### Constructor
+| Signature | Description |
+|---|---|
+| `AbstractConfigFile(KPlugin plugin)` | Loads `config.yml` from data folder / JAR |
 
-```java
-public MessageFile(KPlugin plugin)
-public MessageFile(KPlugin plugin, String fileName, String resourcePath)
-```
+#### Methods
 
-#### Public Methods
-
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `getMessage(String)` | `String` | Gets raw message |
-| `getMessage(String, Function)` | `String` | Gets with function applied |
-| `getColoredMessage(String)` | `String` | Gets with `&` codes converted |
-| `getColoredMessage(String, Function)` | `String` | Colorized with function |
-| `getComponent(String)` | `Component` | Gets Adventure Component |
-| `getComponent(String, Function)` | `Component` | Component with function |
-| `sendMessage(Player, String)` | `void` | Sends with prefix |
-| `sendMessage(Player, String, Function)` | `void` | Sends with function |
-| `sendMessageIfNotEmpty(Player, String)` | `void` | With empty check |
-| `sendMessage(Player, String, boolean, Function)` | `void` | Full-featured send |
-
-#### Important Notes
-
-- ⚠️ **No version tracking** - only adds missing keys from default resource
-- Initializes `MessageUtil` static helper automatically
-- Prints warning + stack trace if key not found
-- Always uses `messages.yml` filename by default
-
-#### Example
-
-```java
-// messages.yml:
-/*
-prefix: "&8[&6MyPlugin&8]"
-welcome: "{prefix} &aWelcome, {player}!"
-goodbye: "{prefix} &cGoodbye!"
-*/
-
-MessageFile messages = new MessageFile(plugin);
-
-// Get raw
-String raw = messages.getMessage("welcome"); // "{prefix} &aWelcome, {player}!"
-
-// Get colored
-String colored = messages.getColoredMessage("welcome"); // With & codes
-
-// Get with placeholder
-Placeholders ph = Placeholders.create().set("{player}", player.getName());
-messages.sendMessage(player, "welcome", ph.toFunction());
-```
+| Modifier | Return | Method | Description |
+|---|---|---|---|
+| `protected abstract` | `void` | `update(int oldVersion, int newVersion)` | Config migration logic |
 
 ---
 
-## GUI System
+### `class MessageFile`
 
-### `GUI` (Class)
+Message configuration file manager with color and prefix support.
 
-**Package**: `dev.khanh.plugin.kplugin.gui`
+#### Fields
 
-**Purpose**: Core GUI class for creating interactive inventory menus with holder-based validation.
+| Modifier | Type | Name | Description |
+|---|---|---|---|
+| `@Getter private final` | `KPlugin` | `plugin` | Plugin instance |
+| `@Getter private final` | `File` | `file` | messages.yml file |
+| `@Getter private final` | `YamlConfiguration` | `defaultYaml` | Default messages from JAR |
+| `@Getter private final` | `YamlConfiguration` | `yaml` | Loaded messages |
+
+#### Constructors
+
+| Signature | Description |
+|---|---|
+| `MessageFile(KPlugin plugin)` | Loads messages.yml, auto-updates missing keys, initializes `MessageUtil` |
+
+#### Methods
+
+| Modifier | Return | Method | Description |
+|---|---|---|---|
+| `public @NotNull` | `String` | `getMessage(String key)` | Raw message by key |
+| `public @NotNull` | `String` | `getMessage(String key, Function<String, String> function)` | Message with transformation |
+| `public @NotNull` | `String` | `getColorizedMessage(String key)` | Legacy-colorized message |
+| `public @NotNull` | `String` | `getColorizedMessage(String key, Function<String, String> function)` | Colorized with transformation |
+| `public @NotNull` | `Component` | `getModernColorizedMessage(String key)` | Adventure Component message |
+| `public @NotNull` | `Component` | `getModernColorizedMessage(String key, Function<String, String> function)` | Component with transformation |
+| `public` | `void` | `sendMessage(CommandSender sender, String key, Function<String, String> function, boolean allowEmpty)` | Send prefixed message |
+| `public` | `void` | `sendMessage(CommandSender sender, String key, Function<String, String> function)` | Send prefixed (skip empty) |
+| `public` | `void` | `sendMessage(CommandSender sender, String key)` | Send prefixed (skip empty) |
+| `public` | `void` | `sendMessage(CommandSender sender, String key, boolean allowEmpty)` | Send prefixed |
+| `public` | `void` | `sendMessageWithPrefix(CommandSender sender, String message)` | Send raw string with prefix |
+
+---
+
+## gui
+
+### `class GUI`
+
+Core GUI class for interactive inventory menus.
+
+#### Fields
+
+| Modifier | Type | Name | Description |
+|---|---|---|---|
+| `protected final` | `UUID` | `guiId` | Unique GUI identifier |
+| `protected final` | `int` | `rows` | Number of rows (1-6) |
+| `protected final` | `int` | `size` | Total slots (rows × 9) |
+| `protected` | `String` | `title` | GUI title |
+| `protected` | `GUIHolder` | `holder` | Inventory holder |
+| `protected` | `Inventory` | `inventory` | Bukkit inventory |
+| `protected` | `boolean` | `initialized` | Whether inventory is created |
+| `protected` | `boolean` | `viewOnly` | Blocks all item interactions (default: `true`) |
+| `protected final` | `Map<Integer, Consumer<ClickContext>>` | `clickHandlers` | Per-slot click handlers |
+| `protected final` | `Map<Integer, String>` | `disabledSlots` | Disabled slot messages |
+| `protected final` | `Map<Integer, Map<String, Object>>` | `slotMeta` | Per-slot metadata |
+| `protected` | `Consumer<ClickContext>` | `globalClickHandler` | Global click handler |
+| `protected` | `Consumer<Player>` | `closeHandler` | Close event handler |
+| `protected` | `Consumer<Player>` | `openHandler` | Open event handler |
+| `protected final` | `Map<String, Object>` | `guiMeta` | GUI-wide metadata |
+
+#### Constructors
+
+| Modifier | Signature | Description |
+|---|---|---|
+| `protected` | `GUI(int rows, String title)` | Creates GUI (1-6 rows, supports & color codes) |
 
 #### Static Factory Methods
 
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `builder()` | `int rows` | `GUIBuilder` | Creates builder (1-6 rows) |
-| `builderBySize()` | `int size` | `GUIBuilder` | By size (9/18/27/36/45/54) |
-| `create()` | `int rows, String title` | `GUI` | Creates GUI directly |
+| Return | Method | Description |
+|---|---|---|
+| `GUIBuilder` | `builder(int rows)` | Creates a GUIBuilder |
+| `GUIBuilder` | `builderBySize(int size)` | Creates GUIBuilder by inventory size (9/18/27/36/45/54) |
+| `GUI` | `create(int rows, String title)` | Creates GUI directly |
 
-#### Slot Access Methods
+#### Slot Access
 
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `slot()` | `int slot` | `SlotHandle` | Single slot handle |
-| `slotRange()` | `int start, int end` | `SlotRangeHandle` | Range (inclusive) |
-| `slots()` | `int... indices` | `MultiSlotHandle` | Multiple slots |
-| `row()` | `int row` | `SlotRangeHandle` | Entire row (0-based) |
-| `column()` | `int column` | `MultiSlotHandle` | Column (0-8) |
+| Return | Method | Description |
+|---|---|---|
+| `SlotHandle` | `slot(int slot)` | Handle for a single slot |
+| `SlotRangeHandle` | `slotRange(int start, int end)` | Handle for contiguous range (inclusive) |
+| `MultiSlotHandle` | `slots(int... indices)` | Handle for multiple slots |
+| `SlotRangeHandle` | `row(int row)` | Handle for an entire row (0-based) |
+| `MultiSlotHandle` | `column(int column)` | Handle for an entire column (0-8) |
 
-#### Event Handlers
+#### Slot Operations (Internal)
 
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `onGlobalClick()` | `Consumer<ClickContext>` | `GUI` | Global click handler |
-| `onClose()` | `Consumer<Player>` | `GUI` | Close handler |
-| `onOpen()` | `Consumer<Player>` | `GUI` | Open handler |
+| Return | Method | Description |
+|---|---|---|
+| `void` | `setSlotItem(int slot, ItemStack item)` | Set item in slot |
+| `ItemStack` | `getSlotItem(int slot)` | Get item from slot |
+| `void` | `setSlotClickHandler(int slot, Consumer<ClickContext> handler)` | Set/remove click handler |
+| `void` | `setSlotDisabled(int slot, String message)` | Disable slot with message |
+| `void` | `setSlotEnabled(int slot)` | Enable slot |
+| `boolean` | `isSlotDisabled(int slot)` | Check if slot is disabled |
+| `void` | `setSlotMeta(int slot, String key, Object value)` | Set slot metadata |
+| `<T> T` | `getSlotMeta(int slot, String key)` | Get slot metadata |
+
+#### Global Handlers
+
+| Return | Method | Description |
+|---|---|---|
+| `GUI` | `onGlobalClick(Consumer<ClickContext> handler)` | Set global click handler |
+| `GUI` | `onClose(Consumer<Player> handler)` | Set close handler |
+| `GUI` | `onOpen(Consumer<Player> handler)` | Set open handler |
 
 #### Properties
 
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `getGuiId()` | `UUID` | Unique GUI identifier |
-| `getRows()` | `int` | Number of rows |
-| `getSize()` | `int` | Total slot count |
-| `getTitle()` | `String` | GUI title |
-| `isViewOnly()` | `boolean` | Check if view-only |
-| `setViewOnly(boolean)` | `GUI` | Set view-only mode |
+| Return | Method | Description |
+|---|---|---|
+| `UUID` | `getGuiId()` | GUI unique ID |
+| `int` | `getRows()` | Row count |
+| `int` | `getSize()` | Slot count |
+| `String` | `getTitle()` | Title |
+| `boolean` | `isViewOnly()` | View-only mode |
+| `GUI` | `setViewOnly(boolean viewOnly)` | Set view-only |
+| `GUI` | `updateTitle(String newTitle)` | Update title and refresh for viewers |
+
+#### Metadata
+
+| Return | Method | Description |
+|---|---|---|
+| `GUI` | `setMeta(String key, Object value)` | Set GUI metadata |
+| `<T> T` | `getMeta(String key)` | Get metadata (nullable) |
+| `<T> T` | `getMeta(String key, T defaultValue)` | Get metadata with default |
 
 #### Helper Methods
 
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `fillBorder()` | `ItemStack` | `GUI` | Fills border |
-| `fillEmpty()` | `ItemStack` | `GUI` | Fills empty slots |
-| `clear()` | - | `GUI` | Clears all |
-| `refresh()` | - | `GUI` | Refreshes for viewers |
-| `updateTitle()` | `String newTitle` | `GUI` | Updates title dynamically |
-| `open()` | `Player` | `void` | Opens GUI |
-| `close()` | `Player` | `void` | Closes GUI |
+| Return | Method | Description |
+|---|---|---|
+| `GUI` | `fillBorder(ItemStack item)` | Fill border slots |
+| `GUI` | `fillBorder(ItemBuilder builder)` | Fill border with builder |
+| `GUI` | `fillEmpty(ItemStack item)` | Fill empty slots |
+| `GUI` | `fillEmpty(ItemBuilder builder)` | Fill empty with builder |
+| `GUI` | `clear()` | Clear all items and handlers |
+| `GUI` | `refresh()` | Refresh for all viewers |
+| `GUIBuilder` | `toBuilder()` | Convert to builder for modification |
 
-#### Metadata Methods
+#### Open/Close
 
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `setMeta()` | `String key, Object value` | `GUI` | Sets GUI metadata |
-| `getMeta()` | `String key` | `T` | Gets metadata |
-| `getMeta()` | `String key, T default` | `T` | With default |
+| Return | Method | Description |
+|---|---|---|
+| `void` | `open(Player player)` | Open GUI for player |
+| `void` | `close(Player player)` | Close GUI for player |
 
-#### Important Notes
+#### Event Callbacks (Internal)
 
-- Uses `GUIHolder` with manager UUID for validation (NOT PDC tags)
-- Automatically invalidates stale GUIs from plugin reloads
-- Supports per-slot click handlers and disabled states
-- View-only mode prevents all item interactions
-- `updateTitle()` recreates inventory with new title while reusing the same GUIHolder (efficient)
-
-#### Example
-
-```java
-GUI gui = GUI.builder(3)
-    .title("&6My Shop")
-    .viewOnly(true)
-    .onOpen(p -> MessageUtil.sendMessageWithPrefix(p, "&aShop opened!"))
-    .onClose(p -> MessageUtil.sendMessageWithPrefix(p, "&cShop closed!"))
-    .build();
-
-// Fill border
-gui.fillBorder(ItemBuilder.of(Material.BLACK_STAINED_GLASS_PANE).name(" ").build());
-
-// Add items
-gui.slot(13).set(ItemBuilder.of(Material.DIAMOND)
-        .name("&bDiamond")
-        .lore("&7Price: &e$100")
-        .build())
-    .onClick(ctx -> {
-        MessageUtil.sendMessageWithPrefix(ctx.player(), "&aPurchased diamond!");
-        ctx.playSound(Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
-    });
-
-// Open
-gui.open(player);
-
-// Update title dynamically (e.g., for progress tracking)
-TaskUtil.runSync(() -> {
-    gui.updateTitle("&aShop - Sale 50% OFF!");
-}, 40L); // 2 seconds later
-```
-
-**Dynamic Title Update Example**:
-
-```java
-// Real-time countdown
-GUI countdown = GUI.builder(3)
-    .title("&cTime: 60s")
-    .build();
-
-countdown.open(player);
-
-final int[] seconds = {60};
-TaskUtil.runSyncRepeating(() -> {
-    if (seconds[0] <= 0) {
-        countdown.updateTitle("&a&lComplete!");
-        return;
-    }
-    seconds[0]--;
-    countdown.updateTitle("&cTime: " + seconds[0] + "s");
-}, 0L, 20L);
-```
-
-**Important Notes on `updateTitle()`**:
-- Before GUI initialization: Only updates the internal title field (very efficient)
-- After initialization: Recreates inventory with new title and reopens for viewers
-- **Reuses existing GUIHolder** - no new object allocation (memory efficient)
-- All items, handlers, and metadata are preserved
-- Use for progress bars, countdowns, dynamic stats
-- Avoid excessive updates (e.g., every tick) - use item lore for very frequent updates
+| Return | Method | Description |
+|---|---|---|
+| `void` | `handleClick(ClickContext context)` | Process click event |
+| `void` | `handleOpen(Player player)` | Process open event |
+| `void` | `handleClose(Player player)` | Process close event |
 
 ---
 
-### `GUIBuilder` (Final Class)
+### `final class GUIBuilder`
 
-**Package**: `dev.khanh.plugin.kplugin.gui`
+Fluent builder for creating GUI instances.
 
-**Purpose**: Fluent builder for creating GUI instances with pre-configured slots.
+#### Constructors
 
-#### Public Methods
+| Modifier | Signature |
+|---|---|
+| package | `GUIBuilder(int rows)` |
 
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `title()` | `String` | `GUIBuilder` | Sets title |
-| `viewOnly()` | `boolean` | `GUIBuilder` | Sets view-only |
-| `onGlobalClick()` | `Consumer` | `GUIBuilder` | Global handler |
-| `onClose()` | `Consumer` | `GUIBuilder` | Close handler |
-| `onOpen()` | `Consumer` | `GUIBuilder` | Open handler |
-| `slot()` | `int, ItemStack` | `GUIBuilder` | Configure slot |
-| `slot()` | `int, ItemBuilder` | `GUIBuilder` | With builder |
-| `slot()` | `int, ItemStack, Consumer` | `GUIBuilder` | With click |
-| `disabledSlot()` | `int, ItemStack, String` | `GUIBuilder` | Disabled |
-| `fillBorder()` | `ItemStack` | `GUIBuilder` | Fill border |
-| `fillEmpty()` | `ItemStack` | `GUIBuilder` | Fill empty |
-| `build()` | - | `GUI` | Builds GUI |
+#### Static Methods
 
-#### Important Notes
+| Return | Method | Description |
+|---|---|---|
+| `GUIBuilder` | `from(GUI gui)` | Create builder from existing GUI |
 
-- Apply order: border → slot configs → fill empty
-- All configurations stored until `build()` is called
+#### Methods
 
-#### Example
-
-```java
-GUI gui = GUI.builder(6)
-    .title("&cAdmin Panel")
-    .viewOnly(true)
-    .fillBorder(ItemBuilder.of(Material.RED_STAINED_GLASS_PANE).name(" ").build())
-    .slot(13, ItemBuilder.of(Material.COMMAND_BLOCK).name("&eReload").build(), 
-        ctx -> {
-            plugin.reload();
-            ctx.player().sendMessage("&aReloaded!");
-        })
-    .slot(14, ItemBuilder.of(Material.BARRIER).name("&cStop Server").build(),
-        ctx -> Bukkit.shutdown())
-    .build();
-
-gui.open(player);
-```
+| Return | Method | Description |
+|---|---|---|
+| `GUIBuilder` | `title(String title)` | Set title |
+| `GUIBuilder` | `viewOnly(boolean viewOnly)` | Set view-only |
+| `GUIBuilder` | `onGlobalClick(Consumer<ClickContext>)` | Set global click handler |
+| `GUIBuilder` | `onClose(Consumer<Player>)` | Set close handler |
+| `GUIBuilder` | `onOpen(Consumer<Player>)` | Set open handler |
+| `GUIBuilder` | `slot(int slot, ItemStack item)` | Configure slot with item |
+| `GUIBuilder` | `slot(int slot, ItemBuilder builder)` | Configure slot with builder |
+| `GUIBuilder` | `slot(int slot, ItemStack item, Consumer<ClickContext> handler)` | Slot with click handler |
+| `GUIBuilder` | `slot(int slot, ItemBuilder builder, Consumer<ClickContext> handler)` | Slot builder + handler |
+| `GUIBuilder` | `disabledSlot(int slot, ItemStack item, String disabledMessage)` | Disabled slot |
+| `GUIBuilder` | `disabledSlot(int slot, ItemBuilder builder, String disabledMessage)` | Disabled slot with builder |
+| `GUIBuilder` | `fillBorder(ItemStack item)` | Fill border |
+| `GUIBuilder` | `fillBorder(ItemBuilder builder)` | Fill border with builder |
+| `GUIBuilder` | `fillEmpty(ItemStack item)` | Fill empty slots |
+| `GUIBuilder` | `fillEmpty(ItemBuilder builder)` | Fill empty with builder |
+| `GUIBuilder` | `removeSlot(int slot)` | Remove slot config |
+| `GUIBuilder` | `removeSlotRange(int start, int end)` | Remove range |
+| `GUIBuilder` | `clearSlots()` | Remove all slot configs |
+| `GUIBuilder` | `copy()` | Deep copy builder |
+| `GUI` | `build()` | Build the GUI |
 
 ---
 
-### `GUIManager` (Singleton Class)
+### `class GUIManager implements Listener`
 
-**Package**: `dev.khanh.plugin.kplugin.gui`
+Central manager for GUI lifecycle, event handling, and player tracking. Singleton via `InstanceManager`.
 
-**Purpose**: Central manager for GUI lifecycle, player tracking, and event handling.
+#### Constructors
 
-#### Public Methods
+| Signature | Description |
+|---|---|
+| `GUIManager(KPlugin plugin)` | Creates manager, registers events and in InstanceManager |
 
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `getInstance()` | `GUIManager` | Gets singleton |
-| `getManagerUUID()` | `UUID` | Manager UUID for validation |
-| `openGUI(Player, GUI)` | `void` | Opens GUI |
-| `closeGUI(Player)` | `void` | Closes player's GUI |
-| `getOpenGUI(Player)` | `GUI` | Gets player's open GUI |
-| `getGUI(Inventory)` | `GUI` | Gets GUI from inventory |
-| `hasGUIOpen(Player)` | `boolean` | Check if has GUI open |
-| `clearAll()` | `void` | Clears tracking |
-| `closeAll()` | `void` | Closes all GUIs |
-| `shutdown()` | `void` | Shuts down manager |
+#### Methods
 
-#### Important Notes
+| Return | Method | Description |
+|---|---|---|
+| `static GUIManager` | `getInstance()` | Get singleton |
+| `UUID` | `getManagerUUID()` | Manager UUID (changes on reload) |
+| `void` | `openGUI(Player player, GUI gui)` | Open a GUI for player |
+| `void` | `closeGUI(Player player)` | Close player's GUI |
+| `@Nullable GUI` | `getOpenGUI(Player player)` | Get player's open GUI |
+| `@Nullable GUI` | `getGUI(Inventory inventory)` | Get GUI for inventory |
+| `boolean` | `hasGUIOpen(Player player)` | Check if player has GUI open |
+| `void` | `clearAll()` | Clear tracking without closing |
+| `void` | `closeAll()` | Close all open GUIs |
+| `void` | `shutdown()` | Shutdown and cleanup |
 
-- ⚠️ **Singleton** - automatically registered in `InstanceManager`
-- Generates unique UUID on init - changes on plugin reload
-- Validates `GUIHolder` manager UUID to detect stale GUIs
-- Thread-safe tracking with `ConcurrentHashMap`
+#### Event Handlers
 
-#### Example
-
-```java
-// In your plugin
-GUIManager manager = new GUIManager(this);
-
-// Open GUI
-GUI gui = GUI.builder(3).title("Test").build();
-manager.openGUI(player, gui);
-
-// Check if has GUI
-if (manager.hasGUIOpen(player)) {
-    manager.closeGUI(player);
-}
-
-// Shutdown on disable
-manager.shutdown();
-```
+| Event | Priority | Description |
+|---|---|---|
+| `InventoryClickEvent` | HIGHEST | Routes clicks to GUI handlers; cancels if view-only |
+| `InventoryDragEvent` | HIGHEST | Cancels drag if any slot is in GUI |
+| `InventoryCloseEvent` | MONITOR | Removes tracking, calls close handler |
+| `InventoryOpenEvent` | MONITOR | Adds tracking, calls open handler |
+| `PlayerQuitEvent` | MONITOR | Removes player tracking |
 
 ---
 
-### `ClickContext` (Final Class)
-
-**Package**: `dev.khanh.plugin.kplugin.gui.context`
-
-**Purpose**: Context object for GUI click events with comprehensive click information and utilities.
-
-#### Public Methods
-
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `player()` | `Player` | Gets player |
-| `gui()` | `GUI` | Gets GUI instance |
-| `slot()` | `int` | Gets slot index |
-| `item()` | `ItemStack` | Gets clicked item |
-| `itemOptional()` | `Optional<ItemStack>` | As Optional |
-| `clickType()` | `ClickType` | Gets click type |
-| `event()` | `InventoryClickEvent` | Bukkit event |
-| `isLeftClick()` | `boolean` | Left click check |
-| `isRightClick()` | `boolean` | Right click check |
-| `isShiftClick()` | `boolean` | Shift click check |
-| `isMiddleClick()` | `boolean` | Middle click check |
-| `isDropClick()` | `boolean` | Drop click check |
-| `isNumberKeyClick()` | `boolean` | Number key check |
-| `getNumberKey()` | `int` | Gets key (0-8 or -1) |
-| `cancel()` | `void` | Cancels event |
-| `isCancelled()` | `boolean` | Check cancelled |
-| `playSound(Sound)` | `void` | Plays sound |
-| `playSound(Sound, float, float)` | `void` | With volume/pitch |
-| `closeGUI()` | `void` | Closes GUI |
-| `getMeta(String)` | `T` | Gets metadata |
-| `getMeta(String, T)` | `T` | With default |
-| `setMeta(String, Object)` | `void` | Sets metadata |
-| `hasMeta(String)` | `boolean` | Check exists |
-| `getAllMeta()` | `Map<String, Object>` | Gets all |
-
-#### Example
-
-```java
-gui.slot(10).set(someItem)
-    .onClick(ctx -> {
-        if (ctx.isLeftClick()) {
-            ctx.player().sendMessage("Left clicked!");
-        } else if (ctx.isRightClick()) {
-            ctx.player().sendMessage("Right clicked!");
-        }
-        
-        if (ctx.isShiftClick()) {
-            ctx.player().sendMessage("With shift!");
-        }
-        
-        ctx.playSound(Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
-        ctx.cancel();
-    });
-```
-
----
-
-### Slot Handles
-
-#### `SlotHandle` (Final Class)
-
-**Purpose**: Fluent API for configuring a single GUI slot.
-
-**Key Methods**: `set()`, `clear()`, `onClick()`, `disable()`, `enable()`, `setMeta()`, `getMeta()`, `update()`, `transform()`
-
-#### `SlotRangeHandle` (Final Class)
-
-**Purpose**: Bulk operations for contiguous slot ranges.
-
-**Key Methods**: `fill()`, `fillEmpty()`, `fillAlternating()`, `clear()`, `forEach()`, `onClick()`, `toArray()`, `filter()`, `edges()`
-
-#### `MultiSlotHandle` (Final Class)
-
-**Purpose**: Operations for non-contiguous slot sets.
-
-**Key Methods**: `fill()`, `fillEmpty()`, `fillAlternating()`, `clear()`, `forEach()`, `onClick()`, `filter()`, `combine()`
-
-#### Example
-
-```java
-// Single slot
-gui.slot(13).set(item).onClick(ctx -> {...});
-
-// Range
-gui.slotRange(10, 16).fill(glassPane);
-
-// Multiple
-gui.slots(10, 12, 14, 16).fill(diamond);
-
-// Row
-gui.row(0).fill(borderItem);
-
-// Column
-gui.column(0).fill(borderItem);
-
-// Alternating
-gui.slotRange(0, 8).fillAlternating(blackGlass, whiteGlass);
-```
-
----
-
-### `Pagination<T>` (Final Generic Class)
-
-**Package**: `dev.khanh.plugin.kplugin.gui.pagination`
-
-**Purpose**: Pagination system for displaying large datasets with sync/async loading support.
-
-#### Static Factory Methods
-
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `create()` | `GUI, int[]` | `Builder<T>` | Creates builder |
-| `createForItems()` | `GUI, int[]` | `Builder<ItemStack>` | For ItemStacks |
-
-#### Pagination Control
-
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `getCurrentPage()` | `int` | Current page (0-indexed) |
-| `getTotalPages()` | `int` | Total pages |
-| `hasPreviousPage()` | `boolean` | Check previous |
-| `hasNextPage()` | `boolean` | Check next |
-| `previousPage(Player)` | `void` | Go to previous |
-| `nextPage(Player)` | `void` | Go to next |
-| `goToPage(int, Player)` | `void` | Jump to page |
-| `render(Player)` | `void` | Renders page |
-
-#### Builder Methods
-
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `items()` | `List<T>` | Sets items (sync) |
-| `asyncLoader()` | `Function` | Async loader |
-| `totalPages()` | `Supplier<Integer>` or `int` | Total pages |
-| `itemRenderer()` | `Function<T, ItemStack>` | Item renderer |
-| `onItemClick()` | `BiConsumer<T, ClickContext>` | Click handler |
-| `previousButton()` | `int, ItemStack` | Previous button |
-| `previousButton()` | `int, ItemStack, ItemStack` | With disabled |
-| `nextButton()` | `int, ItemStack` | Next button |
-| `nextButton()` | `int, ItemStack, ItemStack` | With disabled |
-| `pageInfoButton()` | `int, Function` | Page info |
-| `onPageChange()` | `BiConsumer<Integer, Player>` | Page change |
-| `build()` | - | Builds pagination |
-
-#### Nested Classes
-
-**`PageRequest`**: Contains `page`, `itemsPerPage`, `offset` for async loading  
-**`PageInfo`**: Contains `currentPage`, `totalPages`, `itemsPerPage` for display
-
-#### Important Notes
-
-- ⚠️ **Lazy Loading Requirement**: When using `asyncLoader()`, you **MUST** call `totalPages()` to set the total page count
-- Calling `getTotalPages()` without setting it will throw `IllegalStateException`
-- For eager loading with `items()`, total pages is calculated automatically
-- For async loading, you need to provide total pages from your data source (e.g., database count)
-
-#### Example (Eager)
-
-```java
-List<Material> items = Arrays.asList(Material.DIAMOND, Material.EMERALD, /*...*/);
-
-int[] contentSlots = IntStream.rangeClosed(10, 34)
-    .filter(i -> i % 9 != 0 && i % 9 != 8)
-    .toArray();
-
-Pagination<Material> pagination = Pagination.<Material>create(gui, contentSlots)
-    .items(items)
-    .itemRenderer(mat -> ItemBuilder.of(mat).name("&e" + mat.name()).build())
-    .onItemClick((mat, ctx) -> ctx.player().sendMessage("Clicked: " + mat.name()))
-    .previousButton(48, prevItem, disabledPrevItem)
-    .nextButton(50, nextItem, disabledNextItem)
-    .pageInfoButton(49, info -> ItemBuilder.of(Material.PAPER)
-        .name("&6Page " + info.currentPage + "/" + info.totalPages)
-        .build())
-    .onPageChange((page, p) -> p.sendMessage("Page: " + (page + 1)))
-    .build();
-
-pagination.render(player);
-gui.open(player);
-```
-
-#### Example (Lazy/Async)
-
-```java
-Pagination<Material> pagination = Pagination.<Material>create(gui, contentSlots)
-    .asyncLoader(request -> CompletableFuture.supplyAsync(() -> {
-        // Simulate database query
-        Thread.sleep(500);
-        List<Material> pageData = fetchFromDatabase(request.offset, request.itemsPerPage);
-        return pageData;
-    }))
-    .totalPages(10) // ⚠️ REQUIRED for async loader! Calculate from total item count
-    .itemRenderer(mat -> ItemBuilder.of(mat).name("&b" + mat.name()).build())
-    .previousButton(48, prevItem)
-    .nextButton(50, nextItem)
-    .pageInfoButton(49, info -> ItemBuilder.of(Material.PAPER)
-        .name("&6Page " + info.currentPage + "/" + info.totalPages)
-        .build())
-    .build();
-
-pagination.render(player);
-
-// Example with dynamic total pages from database
-int totalItems = database.count();
-int itemsPerPage = contentSlots.length;
-int calculatedTotalPages = (int) Math.ceil((double) totalItems / itemsPerPage);
-
-Pagination<Material> paginationFromDB = Pagination.<Material>create(gui, contentSlots)
-    .asyncLoader(request -> loadFromDatabase(request))
-    .totalPages(calculatedTotalPages)  // Calculated from database count
-    .build();
-```
-
----
-
-### `FrameAnimation` (Final Class)
-
-**Package**: `dev.khanh.plugin.kplugin.gui.animation`
-
-**Purpose**: Diff-based frame animation for GUIs with optimized updates.
-
-#### Static Factory Methods
-
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `create()` | `GUI` | Creates animation |
-| `alternating()` | `GUI, int[], ItemStack, ItemStack` | Two-item alternating |
-| `wave()` | `GUI, int[], ItemStack` | Wave animation |
-| `pulse()` | `GUI, int, ItemStack, ItemStack` | Pulse for slot |
-
-#### Configuration
-
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `interval()` | `long` | `FrameAnimation` | Frame interval (ticks) |
-| `loop()` | `boolean` | `FrameAnimation` | Sets looping |
-| `onComplete()` | `Runnable` | `FrameAnimation` | Completion callback |
-
-#### Frame Management
-
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `addFrame()` | `Map<Integer, ItemStack>` | `FrameAnimation` | Adds frame |
-| `addFrame()` | `Consumer<Map>` | `FrameAnimation` | Via consumer |
-| `addFrames()` | `List<Map>` | `FrameAnimation` | Multiple frames |
-| `getFrameCount()` | - | `int` | Total frames |
-| `clearFrames()` | - | `FrameAnimation` | Clears all |
-
-#### Playback Control
-
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `play()` | `void` | Starts/resumes |
-| `stop()` | `void` | Stops animation |
-| `pause()` | `void` | Pauses animation |
-| `isPlaying()` | `boolean` | Check playing |
-| `isPaused()` | `boolean` | Check paused |
-| `getCurrentFrame()` | `int` | Current frame index |
-| `jumpToFrame(int)` | `void` | Jump to frame |
-
-#### Important Notes
-
-- ⚠️ **Diff-based updates** - Only updates slots that changed between frames (performance)
-- Uses `TaskUtil` for scheduling
-- Maintains current visible state for diffing
-
-#### Example
-
-```java
-FrameAnimation wave = FrameAnimation.create(gui)
-    .interval(5) // 5 ticks = 0.25 seconds
-    .loop(true);
-
-// Add frames
-for (int pos = 0; pos < 9; pos++) {
-    final int position = pos;
-    wave.addFrame(frame -> {
-        frame.put(10 + position, ItemBuilder.of(Material.CYAN_STAINED_GLASS_PANE)
-            .name("&b●")
-            .build());
-    });
-}
-
-wave.play();
-
-// Later...
-wave.pause();
-wave.stop();
-```
-
----
-
-## Instance Management
-
-### `InstanceManager` (Class)
-
-**Package**: `dev.khanh.plugin.kplugin.instance`
-
-**Purpose**: Thread-safe singleton registry for managing plugin component instances.
-
-#### Public Static Methods
-
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `clearAll()` | - | `void` | Clears all instances |
-| `registerInstance()` | `Class<T>, T` | `void` | Registers instance |
-| `getInstance()` | `Class<T>` | `T` | Gets instance (nullable) |
-| `getInstanceOrElseThrow()` | `Class<T>` | `T` | Gets or throws |
-| `removeInstance()` | `Class<T>` | `void` | Removes instance |
-
-#### Important Notes
-
-- Uses `ConcurrentHashMap` for thread safety
-- ⚠️ Does NOT enforce singleton construction - only storage pattern
-- Cleared by `KPlugin` automatically on disable
-- Used by framework for `KPlugin`, `GUIManager`, etc.
-
-#### Example
-
-```java
-// Register
-MyService service = new MyService();
-InstanceManager.registerInstance(MyService.class, service);
-
-// Retrieve
-MyService retrieved = InstanceManager.getInstance(MyService.class);
-if (retrieved != null) {
-    retrieved.doSomething();
-}
-
-// Or throw if not found
-MyService service = InstanceManager.getInstanceOrElseThrow(MyService.class);
-
-// Remove
-InstanceManager.removeInstance(MyService.class);
-```
-
----
-
-## Item System
-
-### `ItemBuilder` (Final Class)
-
-**Package**: `dev.khanh.plugin.kplugin.item`
-
-**Purpose**: Modern fluent builder for creating ItemStacks with comprehensive features.
-
-#### Static Factory Methods
-
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `of()` | `Material` | `ItemBuilder` | Creates builder |
-| `of()` | `ItemStack` | `ItemBuilder` | Clones item |
-| `fromConfig()` | `ConfigurationSection` | `ItemBuilder` | From config |
-
-#### Builder Methods
-
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `material()` | `Material` | `ItemBuilder` | Sets material |
-| `amount()` | `int` | `ItemBuilder` | Sets amount (1-64) |
-| `name()` | `String` | `ItemBuilder` | Display name (colorizes `&`) |
-| `lore()` | `String...` | `ItemBuilder` | Sets lore (replaces) |
-| `lore()` | `List<String>` | `ItemBuilder` | Sets from list |
-| `addLore()` | `String...` | `ItemBuilder` | Adds lines |
-| `insertLore()` | `int, String` | `ItemBuilder` | Inserts at index |
-| `clearLore()` | - | `ItemBuilder` | Clears lore |
-| `enchant()` | `Enchantment, int` | `ItemBuilder` | Adds enchantment |
-| `removeEnchant()` | `Enchantment` | `ItemBuilder` | Removes |
-| `clearEnchants()` | - | `ItemBuilder` | Clears all |
-| `flags()` | `ItemFlag...` | `ItemBuilder` | Adds flags |
-| `allFlags()` | - | `ItemBuilder` | Hides all |
-| `removeFlags()` | `ItemFlag...` | `ItemBuilder` | Removes flags |
-| `customModelData()` | `int` | `ItemBuilder` | Sets CMD |
-| `unbreakable()` | `boolean` | `ItemBuilder` | Sets unbreakable |
-| `unbreakable()` | - | `ItemBuilder` | Makes unbreakable |
-| `glow()` | - | `ItemBuilder` | Glow effect |
-| `skull()` | `String` | `ItemBuilder` | Sets skull |
-| `placeholder()` | `Function` | `ItemBuilder` | Placeholder function |
-| `apply()` | `Consumer` | `ItemBuilder` | Applies consumer |
-| `build()` | - | `ItemStack` | Builds final item |
-
-#### Skull Support
-
-The `skull()` method accepts:
-- **Player names**: `"Notch"` (2-16 alphanumeric)
-- **Player UUIDs**: `"069a79f4-44e9-4726-a5be-fca90e38aaf5"`
-- **Texture URLs**: `"http://textures.minecraft.net/texture/..."`
-- **Base64 texture data**: Any other string
-
-#### Important Notes
-
-- ⚠️ **Replaces ItemStackWrapper** (deprecated)
-- Auto-colorizes `&` codes in name/lore
-- Supports both Paper's PlayerProfile API and legacy methods for skulls
-- Config loading supports: `material`, `skull`, `name`, `display-name`, `lore`, `amount`, `enchantments`, `flags`, `custom-model-data`, `glow`, `unbreakable`
-
-#### Example
-
-```java
-ItemStack sword = ItemBuilder.of(Material.DIAMOND_SWORD)
-    .name("&b&lLegendary Sword")
-    .lore(
-        "&7Damage: &c+15",
-        "&7Speed: &a+3",
-        "",
-        "&6Legendary Tier"
-    )
-    .enchant(Enchantment.DAMAGE_ALL, 5)
-    .enchant(Enchantment.FIRE_ASPECT, 2)
-    .unbreakable()
-    .flags(ItemFlag.HIDE_UNBREAKABLE)
-    .glow()
-    .build();
-
-// From config
-ItemStack item = ItemBuilder.fromConfig(config.getConfigurationSection("items.diamond"))
-    .placeholder(str -> str.replace("{player}", player.getName()))
-    .build();
-```
-
-#### Config Format
-
-```yaml
-items:
-  diamond:
-    material: DIAMOND
-    name: "&b{player}'s Diamond"
-    lore:
-      - "&7A precious gem"
-      - "&7Owner: &f{player}"
-    amount: 1
-    enchantments:
-      DURABILITY: 3
-    flags:
-      - HIDE_ENCHANTS
-    glow: true
-    unbreakable: true
-```
-
----
-
-### `ItemTemplate` (Final Class)
-
-**Package**: `dev.khanh.plugin.kplugin.item`
-
-**Purpose**: Template for creating items from configuration with placeholder support at build time.
-
-#### Static Factory Methods
-
-| Method | Parameters | Return Type |
-|--------|------------|-------------|
-| `fromConfig()` | `ConfigurationSection` | `ItemTemplate` |
-| `builder()` | - | `Builder` |
-
-#### Build Methods
-
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `build()` | - | `ItemStack` | No placeholders |
-| `build()` | `Map<String, String>` | `ItemStack` | Map replacement |
-| `build()` | `Placeholders` | `ItemStack` | Placeholders system |
-| `build()` | `Player, Placeholders` | `ItemStack` | With player |
-| `build()` | `Function<String, String>` | `ItemStack` | Custom function |
-| `toBuilder()` | - | `ItemBuilder` | Convert to builder |
-
-#### Slot Configuration Parsing
-
-Supports multiple formats in config:
-- Single integer: `slot: 13`
-- Range notation: `slots: "10-16"`
-- Comma-separated: `slots: "10, 12, 14"`
-- List format: `slots: [10, 12, 14]`
-
-#### Important Notes
-
-- Stores raw strings, applies placeholders at build time
-- Includes slot configuration for GUI placement
-- Config supports same keys as `ItemBuilder` plus `slot`/`slots` keys
-
-#### Example
-
-```yaml
-items:
-  welcome-item:
-    material: DIAMOND
-    name: "&aWelcome, {player}!"
-    lore:
-      - "&7Your rank: {rank}"
-      - "&7Balance: ${balance}"
-    slot: 13
-```
-
-```java
-ItemTemplate template = ItemTemplate.fromConfig(config.getConfigurationSection("items.welcome-item"));
-
-// Build with placeholders
-Placeholders ph = Placeholders.create()
-    .set("{player}", player.getName())
-    .set("{rank}", "VIP")
-    .set("{balance}", "1000");
-
-ItemStack item = template.build(ph);
-
-// Get slot
-int[] slots = template.getSlots(); // [13]
-```
-
----
-
-## Placeholder System
-
-### `Placeholders` (Final Class)
-
-**Package**: `dev.khanh.plugin.kplugin.placeholder`
-
-**Purpose**: Flexible placeholder system using direct string replacement (no forced format).
-
-#### Static Factory Methods
-
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `create()` | `Placeholders` | Empty instance |
-| `of()` | `Placeholders` | From map |
-
-#### Configuration Methods
-
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `set()` | `String, Object` | `Placeholders` | Static placeholder |
-| `set()` | `String, String` | `Placeholders` | String value |
-| `setAll()` | `Map` | `Placeholders` | Multiple |
-| `resolver()` | `String, Supplier` | `Placeholders` | Dynamic |
-| `resolver()` | `String, Function<Player, String>` | `Placeholders` | Player-aware |
-| `addPlayerPlaceholders()` | `Player` | `Placeholders` | Common player |
-| `addPlayerPlaceholders()` | `Player, String` | `Placeholders` | Custom format |
-| `remove()` | `String` | `Placeholders` | Removes |
-| `clear()` | - | `Placeholders` | Clears all |
-
-#### Application Methods
-
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `apply()` | `String` | `String` | Applies |
-| `apply()` | `String, Player` | `String` | With player |
-| `toFunction()` | - | `Function` | As function |
-| `toFunction()` | `Player` | `Function` | With player |
+## gui.context
+
+### `final class ClickContext`
+
+Context object for GUI click events.
+
+#### Constructors
+
+| Signature |
+|---|
+| `ClickContext(Player player, GUI gui, int slot, ItemStack item, ClickType clickType, InventoryClickEvent event)` |
+
+#### Accessor Methods
+
+| Return | Method |
+|---|---|
+| `Player` | `player()` |
+| `GUI` | `gui()` |
+| `int` | `slot()` |
+| `@Nullable ItemStack` | `item()` |
+| `Optional<ItemStack>` | `itemOptional()` |
+| `ClickType` | `clickType()` |
+| `InventoryClickEvent` | `event()` |
+
+#### Click Type Helpers
+
+| Return | Method |
+|---|---|
+| `boolean` | `isLeftClick()` |
+| `boolean` | `isRightClick()` |
+| `boolean` | `isShiftClick()` |
+| `boolean` | `isMiddleClick()` |
+| `boolean` | `isDoubleClick()` |
+| `boolean` | `isNumberKey()` |
+| `int` | `getHotbarButton()` |
 
 #### Utility Methods
 
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `copy()` | `Placeholders` | Creates copy |
-| `merge()` | `Placeholders` | Merges another |
-| `getPlaceholders()` | `Map` | Gets map |
-| `getResolvers()` | `Map` | Gets resolvers |
-| `getPlayerResolvers()` | `Map` | Gets player resolvers |
-| `isEmpty()` | `boolean` | Check empty |
+| Return | Method | Description |
+|---|---|---|
+| `void` | `cancel()` | Cancel the event |
+| `boolean` | `isCancelled()` | Check cancellation |
+| `void` | `playSound(Sound sound)` | Play sound at player |
+| `void` | `playSound(Sound sound, float volume, float pitch)` | Play sound with params |
+| `void` | `close()` | Close GUI for player |
 
-#### Important Notes
+#### Metadata
 
-- ⚠️ **Free-style format** - YOU define the exact string (e.g., `{player}`, `%player%`, `$var`, `PLAYER`)
-- Thread-safe with `ConcurrentHashMap`
-- Works with PlaceholderAPI - chain functions
-- Common player placeholders: `{player}`, `{player_name}`, `{player_uuid}`, `{player_displayname}`, `{player_health}`, `{player_level}`, `{player_world}`
-
-#### Example
-
-```java
-// Static placeholders
-Placeholders ph = Placeholders.create()
-    .set("{player}", player.getName())
-    .set("{rank}", "VIP")
-    .set("{balance}", 1000);
-
-String message = ph.apply("Welcome, {player}! Rank: {rank}, Balance: ${balance}");
-
-// Dynamic resolvers
-Placeholders dynamic = Placeholders.create()
-    .resolver("{time}", () -> String.valueOf(System.currentTimeMillis()))
-    .resolver("{online}", p -> String.valueOf(Bukkit.getOnlinePlayers().size()));
-
-// Player placeholders
-Placeholders playerPh = Placeholders.create()
-    .addPlayerPlaceholders(player); // Adds {player}, {player_name}, etc.
-
-String text = playerPh.apply("Hello, {player_name}! Health: {player_health}");
-
-// Custom format
-Placeholders custom = Placeholders.create()
-    .addPlayerPlaceholders(player, "%player%"); // Uses %player%, %player_name%, etc.
-
-// Merge
-Placeholders merged = Placeholders.create()
-    .set("{server}", "Lobby")
-    .merge(playerPh);
-
-// As function
-Function<String, String> func = ph.toFunction();
-String result = func.apply("Text with {player}");
-```
+| Return | Method | Description |
+|---|---|---|
+| `<T> T` | `getMeta(String key)` | Get metadata |
+| `<T> T` | `getMeta(String key, T defaultValue)` | Get with default |
+| `ClickContext` | `setMeta(String key, Object value)` | Set metadata |
+| `boolean` | `hasMeta(String key)` | Check key exists |
+| `Map<String, Object>` | `meta()` | Get full metadata map |
 
 ---
 
-## Utility Classes
+## gui.holder
 
-### `ColorUtil` (Class)
+### `class GUIHolder implements InventoryHolder`
 
-**Package**: `dev.khanh.plugin.kplugin.util`
+Custom inventory holder for GUI validation. Stores manager UUID and GUI UUID.
 
-**Purpose**: Color code conversion utilities.
+#### Constructors
 
-#### Public Static Methods
+| Signature |
+|---|
+| `GUIHolder(UUID managerUUID, UUID guiUUID, GUI gui)` |
 
-| Method | Parameters | Return Type | Description |
-|--------|------------|-------------|-------------|
-| `colorize()` | `String` | `String` | `&` → legacy `§` |
-| `modernColorize()` | `String` | `Component` | `&` → Component |
+#### Methods
 
-#### Example
-
-```java
-String colored = ColorUtil.colorize("&aGreen &bBlue"); // §aGreen §bBlue
-Component component = ColorUtil.modernColorize("&aGreen &bBlue");
-player.sendMessage(component);
-```
-
----
-
-### `LoggerUtil` (Class)
-
-**Package**: `dev.khanh.plugin.kplugin.util`
-
-**Purpose**: Static logging with debug mode support.
-
-#### Public Static Methods
-
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `setDebug()` | `boolean` | Enable/disable debug |
-| `isDebug()` | - | Check debug mode |
-| `info()` | `String` | Info log |
-| `info()` | `String, Object...` | Formatted info |
-| `warning()` | `String` | Warning log |
-| `warning()` | `String, Object...` | Formatted warning |
-| `severe()` | `String` | Severe log |
-| `severe()` | `String, Object...` | Formatted severe |
-| `console()` | `String` | Colorized console |
-| `console()` | `String, Object...` | Formatted console |
-| `debug()` | `String` | Debug log |
-| `debug()` | `String, Object...` | Formatted debug |
-
-#### Important Notes
-
-- Uses `KPlugin.getInstance().getLogger()`
-- Debug mode can be enabled via `-Dkplugin.debug=true` system property
-- `console()` methods send to console with color support
-
-#### Example
-
-```java
-LoggerUtil.info("Plugin enabled!");
-LoggerUtil.warning("Config missing key: %s", key);
-LoggerUtil.severe("Critical error!");
-LoggerUtil.console("&aSuccess!");
-
-// Debug mode
-LoggerUtil.setDebug(true);
-LoggerUtil.debug("Debug info: %s", data);
-```
+| Return | Method | Description |
+|---|---|---|
+| `UUID` | `getManagerUUID()` | Manager UUID |
+| `UUID` | `getGuiUUID()` | GUI UUID |
+| `GUI` | `getGui()` | GUI instance |
+| `void` | `setInventory(Inventory inventory)` | Set inventory ref (internal) |
+| `Inventory` | `getInventory()` | InventoryHolder interface |
+| `boolean` | `isValid(UUID currentManagerUUID)` | Validate against current manager |
 
 ---
 
-### `MessageUtil` (Class)
+## gui.slot
 
-**Package**: `dev.khanh.plugin.kplugin.util`
+### `final class SlotHandle`
 
-**Purpose**: Static wrapper for `MessageFile` operations.
+Handle for a single GUI slot with fluent API.
 
-#### Public Static Methods
+#### Constructors
 
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `initialize()` | `MessageFile` | Initialize with file |
-| `getMessage()` | `String` | Gets raw message |
-| `getMessage()` | `String, Function` | With function |
-| `getColoredMessage()` | `String` | Colorized |
-| `getColoredMessage()` | `String, Function` | Colorized + function |
-| `getComponent()` | `String` | Adventure Component |
-| `getComponent()` | `String, Function` | Component + function |
-| `sendMessage()` | `Player, String` | Sends with prefix |
-| `sendMessage()` | `Player, String, Function` | With function |
-| `sendMessageIfNotEmpty()` | `Player, String` | Empty check |
-| `sendMessage()` | `Player, String, boolean, Function` | Full-featured |
-| `sendMessageWithPrefix()` | `Player, String` | Direct message |
+| Signature |
+|---|
+| `SlotHandle(GUI gui, int slot)` |
 
-#### Important Notes
+#### Methods
 
-- Automatically initialized by `MessageFile` constructor
-- Throws `IllegalStateException` if used before initialization
-
-#### Example
-
-```java
-// Initialize (done by MessageFile)
-MessageFile messages = new MessageFile(plugin);
-
-// Use static methods
-MessageUtil.sendMessage(player, "welcome");
-MessageUtil.sendMessageWithPrefix(player, "&aWelcome!");
-
-String msg = MessageUtil.getColoredMessage("prefix");
-```
+| Return | Method | Description |
+|---|---|---|
+| `int` | `index()` | Slot index |
+| `GUI` | `gui()` | Parent GUI |
+| `SlotHandle` | `set(ItemStack item)` | Set item |
+| `SlotHandle` | `set(ItemBuilder builder)` | Set from builder |
+| `SlotHandle` | `clear()` | Clear item |
+| `@Nullable ItemStack` | `item()` | Get current item |
+| `SlotHandle` | `onClick(Consumer<ClickContext> handler)` | Set click handler |
+| `SlotHandle` | `clearClickHandler()` | Remove click handler |
+| `SlotHandle` | `disable(String message)` | Disable with message |
+| `SlotHandle` | `enable()` | Enable slot |
+| `boolean` | `isDisabled()` | Check disabled state |
+| `SlotHandle` | `update(Consumer<ItemStack> updater)` | Modify current item in-place |
+| `SlotHandle` | `transform(Function<ItemStack, ItemStack> transformer)` | Replace item via function |
+| `boolean` | `isEmpty()` | Check if slot is empty |
+| `SlotHandle` | `setMeta(String key, Object value)` | Set slot metadata |
+| `<T> T` | `getMeta(String key)` | Get slot metadata |
+| `<T> T` | `getMeta(String key, T defaultValue)` | Get with default |
 
 ---
 
-### `SoundUtil` (Class)
+### `final class SlotRangeHandle`
 
-**Package**: `dev.khanh.plugin.kplugin.util`
+Handle for a contiguous range of slots (inclusive).
 
-**Purpose**: Multi-version sound playback with legacy-to-modern mapping.
+#### Constructors
 
-#### Public Static Methods
+| Signature |
+|---|
+| `SlotRangeHandle(GUI gui, int startSlot, int endSlot)` |
 
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `playSound()` | `Player, String` | Play sound |
-| `playSound()` | `Player, String, float, float` | With volume/pitch |
-| `playSound()` | `Location, String, float, float` | At location |
-| `playSoundUnsafe()` | `Player, String, float, float` | Without exception handling |
-| `isValidSound()` | `String` | Validates name |
+#### Methods
 
-#### Predefined GUI Sounds
-
-| Method | Description |
-|--------|-------------|
-| `playClickSound()` | `ui.button.click` |
-| `playNavigateSound()` | Navigate sound |
-| `playSuccessSound()` | Success sound |
-| `playErrorSound()` | Error sound |
-| `playCloseSound()` | Close sound |
-| `playOpenSound()` | Open sound |
-
-#### Important Notes
-
-- Auto-converts legacy enum names (e.g., `LEVEL_UP`) to modern format (`entity.player.levelup`)
-- Accepts both Sound enum names and namespaced keys
-- Handles version differences between pre-1.9 and 1.9+
-
-#### Example
-
-```java
-SoundUtil.playSound(player, "entity.player.levelup", 1.0f, 1.0f);
-SoundUtil.playClickSound(player);
-SoundUtil.playSuccessSound(player);
-
-// At location
-SoundUtil.playSound(location, "block.note_block.pling", 1.0f, 2.0f);
-```
+| Return | Method | Description |
+|---|---|---|
+| `int` | `start()` | Start slot |
+| `int` | `end()` | End slot |
+| `int` | `size()` | Number of slots |
+| `GUI` | `gui()` | Parent GUI |
+| `SlotRangeHandle` | `fill(ItemStack item)` | Fill all slots |
+| `SlotRangeHandle` | `fill(ItemBuilder builder)` | Fill with builder |
+| `SlotRangeHandle` | `fillEmpty(ItemStack item)` | Fill only empty slots |
+| `SlotRangeHandle` | `fillAlternating(ItemStack item1, ItemStack item2)` | Alternate items |
+| `SlotRangeHandle` | `clear()` | Clear all |
+| `SlotRangeHandle` | `forEach(BiConsumer<Integer, SlotHandle> action)` | Iterate with handle |
+| `SlotRangeHandle` | `forEachIndex(Consumer<Integer> action)` | Iterate indices |
+| `SlotRangeHandle` | `onClick(Consumer<ClickContext> handler)` | Set handler for all |
+| `SlotRangeHandle` | `disable(String message)` | Disable all |
+| `SlotRangeHandle` | `enable()` | Enable all |
+| `int[]` | `toArray()` | Convert to index array |
+| `MultiSlotHandle` | `filter(IntPredicate predicate)` | Filter slots |
+| `MultiSlotHandle` | `edges()` | Get edge slots only |
 
 ---
 
-### `TaskUtil` (Class)
+### `final class MultiSlotHandle`
 
-**Package**: `dev.khanh.plugin.kplugin.util`
+Handle for multiple non-contiguous slots.
 
-**Purpose**: Unified task scheduling for Spigot/Paper/Folia compatibility. Uses intermediate abstractions (`ScheduledTask`, `TaskResult`) to decouple from the underlying FoliaLib scheduler.
+#### Constructors
 
-> **Naming Convention**: Methods follow a consistent naming pattern:
-> - **`run*()`** methods accept a `Runnable` — fire-and-forget tasks.
-> - **`schedule*()`** methods accept a `Consumer<ScheduledTask>` — the callback receives its own task handle, enabling self-cancellation or inspection.
->
-> This distinction resolves Kotlin SAM overload ambiguity.
+| Signature |
+|---|
+| `MultiSlotHandle(GUI gui, int... slots)` |
 
-#### Global Region (Sync)
+#### Methods
 
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `runSync()` | `Runnable` | Next tick |
-| `runSync()` | `Plugin, Runnable` | Next tick |
-| `runSync()` | `Runnable, long` | Delayed (ticks) |
-| `runSync()` | `Plugin, Runnable, long, TimeUnit` | Custom unit |
-| `runSyncRepeating()` | `Runnable, long, long` | Repeating (ticks) |
-| `runSyncRepeating()` | `Plugin, Runnable, long, long, TimeUnit` | Custom unit |
-| `scheduleSync()` | `Consumer<ScheduledTask>` | Next tick (with task handle) |
-| `scheduleSync()` | `Consumer<ScheduledTask>, long` | Delayed (ticks, with task handle) |
-| `scheduleSync()` | `Consumer<ScheduledTask>, long, TimeUnit` | Custom unit (with task handle) |
-| `scheduleSyncRepeating()` | `Consumer<ScheduledTask>, long, long` | Repeating (ticks, with task handle) |
-| `scheduleSyncRepeating()` | `Consumer<ScheduledTask>, long, long, TimeUnit` | Custom unit (with task handle) |
-
-#### Async Thread
-
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `runAsync()` | `Runnable` | Immediate |
-| `runAsync()` | `Plugin, Runnable` | Immediate |
-| `runAsync()` | `Runnable, long` | Delayed (ticks) |
-| `runAsyncRepeating()` | `Runnable, long, long` | Repeating (ticks) |
-| `scheduleAsync()` | `Consumer<ScheduledTask>` | Immediate (with task handle) |
-| `scheduleAsync()` | `Consumer<ScheduledTask>, long` | Delayed (ticks, with task handle) |
-| `scheduleAsync()` | `Consumer<ScheduledTask>, long, TimeUnit` | Custom unit (with task handle) |
-| `scheduleAsyncRepeating()` | `Consumer<ScheduledTask>, long, long` | Repeating (ticks, with task handle) |
-| `scheduleAsyncRepeating()` | `Consumer<ScheduledTask>, long, long, TimeUnit` | Custom unit (with task handle) |
-
-#### Entity Region (Folia)
-
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `runAtEntity()` | `Entity, Runnable` | Immediate |
-| `runAtEntity()` | `Plugin, Entity, Runnable` | Immediate |
-| `runAtEntity()` | `Entity, Runnable, long` | Delayed |
-| `runAtEntity()` | `Entity, Runnable, Runnable, long` | Delayed (with fallback) |
-| `runAtEntity()` | `Entity, Runnable, long, TimeUnit` | Custom unit |
-| `runAtEntityRepeating()` | `Entity, Runnable, long, long` | Repeating |
-| `runAtEntityRepeating()` | `Entity, Runnable, Runnable, long, long` | Repeating (with fallback) |
-| `runAtEntityRepeating()` | `Entity, Runnable, long, long, TimeUnit` | Custom unit |
-| `scheduleAtEntity()` | `Entity, Consumer<ScheduledTask>` | Immediate (with task handle) |
-| `scheduleAtEntityWithFallback()` | `Entity, Consumer<ScheduledTask>, Runnable` | Immediate (with fallback & task handle) |
-| `scheduleAtEntity()` | `Entity, Consumer<ScheduledTask>, long` | Delayed (with task handle) |
-| `scheduleAtEntity()` | `Entity, Consumer<ScheduledTask>, Runnable, long` | Delayed (with fallback & task handle) |
-| `scheduleAtEntity()` | `Entity, Consumer<ScheduledTask>, long, TimeUnit` | Custom unit (with task handle) |
-| `scheduleAtEntityRepeating()` | `Entity, Consumer<ScheduledTask>, long, long` | Repeating (with task handle) |
-| `scheduleAtEntityRepeating()` | `Entity, Consumer<ScheduledTask>, Runnable, long, long` | Repeating (with fallback & task handle) |
-| `scheduleAtEntityRepeating()` | `Entity, Consumer<ScheduledTask>, long, long, TimeUnit` | Custom unit (with task handle) |
-| Variants with `Runnable retired/fallback` | | For invalid entity |
-
-#### Location Region (Folia)
-
-| Method | Parameters | Description |
-|--------|------------|-------------|
-| `runAtLocation()` | `Location, Runnable` | Immediate |
-| `runAtLocation()` | `Plugin, Location, Runnable` | Immediate |
-| `runAtLocation()` | `Location, Runnable, long` | Delayed |
-| `runAtLocation()` | `Location, Runnable, long, TimeUnit` | Custom unit |
-| `runAtLocationRepeating()` | `Location, Runnable, long, long` | Repeating |
-| `runAtLocationRepeating()` | `Location, Runnable, long, long, TimeUnit` | Custom unit |
-| `scheduleAtLocation()` | `Location, Consumer<ScheduledTask>` | Immediate (with task handle) |
-| `scheduleAtLocation()` | `Location, Consumer<ScheduledTask>, long` | Delayed (with task handle) |
-| `scheduleAtLocation()` | `Location, Consumer<ScheduledTask>, long, TimeUnit` | Custom unit (with task handle) |
-| `scheduleAtLocationRepeating()` | `Location, Consumer<ScheduledTask>, long, long` | Repeating (with task handle) |
-| `scheduleAtLocationRepeating()` | `Location, Consumer<ScheduledTask>, long, long, TimeUnit` | Custom unit (with task handle) |
-
-#### Task Management
-
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `cancel()` | `void` | Cancel task |
-| `cancelAll()` | `void` | Cancel all |
-| `getTask()` | `ScheduledTask` | Get task |
-| `getAllTasks()` | `Collection` | All tasks |
-
-#### Utility
-
-| Method | Return Type | Description |
-|--------|-------------|-------------|
-| `isFolia()` | `boolean` | Check Folia |
-| `isOwnedByCurrentRegion()` | `boolean` | Check region |
-| Various region checks | `boolean` | Location/entity region |
-
-#### Important Notes
-
-- ⚠️ **Prefer tick-based methods** over TimeUnit for performance
-- `run*()` methods accept `Runnable` (fire-and-forget); `schedule*()` methods accept `Consumer<ScheduledTask>` (task handle for self-cancellation/inspection)
-- `run*()` methods return `ScheduledTask` or `void`; `schedule*()` methods return `CompletableFuture<Void>` or `void`
-- Scheduler initialized by `KPlugin`
-- All delays/periods in ticks by default (20 ticks = 1 second)
-
-#### Example
-
-```java
-// Sync task
-TaskUtil.runSync(() -> {
-    player.sendMessage("Next tick!");
-});
-
-// Delayed
-TaskUtil.runSync(() -> {
-    player.sendMessage("5 seconds later!");
-}, 100L); // 100 ticks = 5 seconds
-
-// Repeating
-ScheduledTask task = TaskUtil.runSyncRepeating(() -> {
-    player.sendMessage("Every second!");
-}, 0L, 20L);
-
-// Cancel later
-TaskUtil.cancel(task);
-
-// Async
-TaskUtil.runAsync(() -> {
-    // Database query
-    List<Data> data = database.query();
-    
-    // Back to sync
-    TaskUtil.runSync(() -> {
-        processData(data);
-    });
-});
-
-// Entity region (Folia)
-TaskUtil.runAtEntity(player, () -> {
-    player.sendMessage("Entity region!");
-});
-
-// --- schedule* variants (Consumer<ScheduledTask>) ---
-
-// Self-cancelling repeating task
-TaskUtil.scheduleSyncRepeating(task -> {
-    if (someCondition()) {
-        task.cancel(); // Cancel from within the callback
-        return;
-    }
-    player.sendMessage("Still running...");
-}, 0L, 20L);
-
-// Async with task handle
-TaskUtil.scheduleAsync(task -> {
-    List<Data> data = database.query();
-    TaskUtil.runSync(() -> processData(data));
-});
-
-// Entity region with task handle (Folia)
-TaskUtil.scheduleAtEntity(player, task -> {
-    player.sendMessage("Entity region with task handle!");
-});
-```
+| Return | Method | Description |
+|---|---|---|
+| `int[]` | `indices()` | Slot indices (cloned) |
+| `int` | `size()` | Number of slots |
+| `GUI` | `gui()` | Parent GUI |
+| `MultiSlotHandle` | `fill(ItemStack item)` | Fill all |
+| `MultiSlotHandle` | `fill(ItemBuilder builder)` | Fill with builder |
+| `MultiSlotHandle` | `fillEmpty(ItemStack item)` | Fill only empty |
+| `MultiSlotHandle` | `fillAlternating(ItemStack item1, ItemStack item2)` | Alternate items |
+| `MultiSlotHandle` | `clear()` | Clear all |
+| `MultiSlotHandle` | `forEach(BiConsumer<Integer, SlotHandle> action)` | Iterate with handle |
+| `MultiSlotHandle` | `forEachIndex(Consumer<Integer> action)` | Iterate indices |
+| `MultiSlotHandle` | `onClick(Consumer<ClickContext> handler)` | Set handler for all |
+| `MultiSlotHandle` | `disable(String message)` | Disable all |
+| `MultiSlotHandle` | `enable()` | Enable all |
+| `MultiSlotHandle` | `filter(IntPredicate predicate)` | Filter slots |
+| `MultiSlotHandle` | `combine(MultiSlotHandle other)` | Merge two handles |
 
 ---
 
-### `TeleportUtil` (Class)
+## gui.animation
 
-**Package**: `dev.khanh.plugin.kplugin.util`
+### `final class FrameAnimation`
 
-**Purpose**: Async entity teleportation using FoliaLib.
+Diff-based frame animation for GUIs. Only updates changed slots between frames.
 
-#### Public Static Methods
+#### Static Factory Methods
 
-| Method | Parameters | Return Type |
-|--------|------------|-------------|
-| `teleport()` | `Entity, Location` | `CompletableFuture<Boolean>` |
-| `teleport()` | `Entity, Location, TeleportCause` | `CompletableFuture<Boolean>` |
+| Return | Method | Description |
+|---|---|---|
+| `FrameAnimation` | `create(GUI gui)` | Create new animation |
+| `FrameAnimation` | `alternating(GUI gui, int[] slots, ItemStack item1, ItemStack item2, long intervalTicks)` | Pre-built alternating animation |
+| `FrameAnimation` | `wave(GUI gui, int[] slots, ItemStack activeItem, ItemStack inactiveItem, long intervalTicks)` | Pre-built wave animation |
+| `FrameAnimation` | `pulse(GUI gui, int slot, ItemStack[] items, long intervalTicks)` | Pre-built pulse animation |
 
-#### Platform Behavior
+#### Configuration Methods
 
-- **Folia**: Teleports in entity's region asynchronously
-- **Paper**: Teleports asynchronously if supported
-- **Spigot**: Falls back to next-tick teleport (NOT instant)
+| Return | Method | Description |
+|---|---|---|
+| `FrameAnimation` | `interval(long ticks)` | Set frame interval (default: 10) |
+| `FrameAnimation` | `loop(boolean loop)` | Enable/disable looping |
+| `FrameAnimation` | `onComplete(Runnable callback)` | Set completion callback |
+| `FrameAnimation` | `addFrame(Map<Integer, ItemStack> frame)` | Add a frame |
+| `FrameAnimation` | `addFrame(Consumer<Map<Integer, ItemStack>> frameBuilder)` | Add frame via builder |
+| `FrameAnimation` | `addFrames(Map<Integer, ItemStack>... frames)` | Add multiple frames |
+| `FrameAnimation` | `clearFrames()` | Remove all frames |
 
-#### Important Notes
+#### Control Methods
 
-- ⚠️ Returns `CompletableFuture` - ALWAYS handle result
-- On Spigot, NOT instant to avoid thread safety issues
-
-#### Example
-
-```java
-TeleportUtil.teleport(player, targetLocation).thenAccept(result -> {
-    if (result) {
-        MessageUtil.sendMessageWithPrefix(player, "&aTeleported!");
-    } else {
-        MessageUtil.sendMessageWithPrefix(player, "&cTeleport failed!");
-    }
-});
-
-// With cause
-TeleportUtil.teleport(player, location, TeleportCause.PLUGIN).thenAccept(result -> {
-    LoggerUtil.info("Teleport result: " + result);
-});
-```
-
----
-
-## Important Warnings & Best Practices
-
-### Critical Patterns
-
-#### 1. KCommand Dual Overload Pattern
-
-⚠️ **MUST implement BOTH overloads**:
-
-```java
-@Override
-public void onCommand(CommandSender sender, List<String> args) {
-    // Handle all senders
-}
-
-@Override
-public void onCommand(Player player, List<String> args) {
-    // Handle player-specific logic
-}
-```
-
-⚠️ **Must call `registerCommand()` manually**:
-
-```java
-MyCommand cmd = new MyCommand();
-cmd.registerCommand(plugin); // NOT automatic!
-```
+| Return | Method | Description |
+|---|---|---|
+| `void` | `start()` | Start/resume animation |
+| `void` | `stop()` | Stop animation |
+| `void` | `pause()` | Pause animation |
+| `void` | `jumpToFrame(int frameIndex)` | Jump to specific frame |
+| `boolean` | `isRunning()` | Check running state |
+| `boolean` | `isPaused()` | Check paused state |
+| `int` | `getCurrentFrameIndex()` | Current frame index |
+| `int` | `getFrameCount()` | Total frame count |
 
 ---
 
-#### 2. Config File Version Keys
+## gui.pagination
 
-⚠️ **Different default keys**:
+### `final class Pagination<T>`
 
-- `AbstractConfigFile` (config.yml): Uses `"config-version"`
-- `GenericYamlFile`: Uses `"version"` by default
-- `MessageFile`: No version tracking
+Pagination helper for displaying paginated content in GUIs.
 
-```yaml
-# config.yml
-config-version: 2
+#### Static Factory Methods
 
-# database.yml (GenericYamlFile)
-version: 1
-```
+| Return | Method | Description |
+|---|---|---|
+| `Builder<T>` | `create(GUI gui, int[] contentSlots)` | Create builder for type T |
+| `Builder<ItemStack>` | `createForItems(GUI gui, int[] contentSlots)` | Create builder for ItemStack |
 
----
+#### Methods
 
-#### 3. GUI Security Model
+| Return | Method | Description |
+|---|---|---|
+| `int` | `getCurrentPage()` | Current page (0-based) |
+| `int` | `getTotalPages()` | Total pages |
+| `boolean` | `hasPreviousPage()` | Check if previous exists |
+| `boolean` | `hasNextPage()` | Check if next exists |
+| `void` | `previousPage(Player player)` | Go to previous page |
+| `void` | `nextPage(Player player)` | Go to next page |
+| `void` | `goToPage(int page, Player player)` | Go to specific page |
+| `void` | `render(Player player)` | Render current page |
 
-⚠️ **Uses GUIHolder with manager UUID** (NOT PDC tags):
+### `Pagination.Builder<T>`
 
-```java
-// CORRECT - Framework handles this
-GUI gui = GUI.builder(3).title("Test").build();
+| Return | Method | Description |
+|---|---|---|
+| `Builder<T>` | `items(List<T> items)` | Set data list |
+| `Builder<T>` | `asyncLoader(Function<PageRequest, CompletableFuture<List<T>>> loader)` | Set async loader |
+| `Builder<T>` | `totalPages(Supplier<Integer> supplier)` | Set total pages (required for async) |
+| `Builder<T>` | `totalPages(int pages)` | Set fixed total pages |
+| `Builder<T>` | `itemRenderer(Function<T, ItemStack> renderer)` | Set item renderer |
+| `Builder<T>` | `onItemClick(BiConsumer<T, ClickContext> handler)` | Set item click handler |
+| `Builder<T>` | `previousButton(int slot, ItemStack item)` | Configure previous button |
+| `Builder<T>` | `previousButton(int slot, ItemStack item, ItemStack disabledItem)` | Previous with disabled state |
+| `Builder<T>` | `nextButton(int slot, ItemStack item)` | Configure next button |
+| `Builder<T>` | `nextButton(int slot, ItemStack item, ItemStack disabledItem)` | Next with disabled state |
+| `Builder<T>` | `pageInfoButton(int slot, Function<PageInfo, ItemStack> renderer)` | Page info display |
+| `Builder<T>` | `pageInfoButton(int slot, ItemStack baseItem)` | Page info with base item |
+| `Builder<T>` | `onPageChange(BiConsumer<Integer, Player> callback)` | Page change callback |
+| `Pagination<T>` | `build()` | Build pagination |
 
-// DO NOT manually create GUIHolder
-// DO NOT add PDC tags to GUI items
-```
+### `Pagination.PageRequest`
 
-The framework automatically:
-- Creates `GUIHolder` with manager UUID
-- Validates on every click
-- Invalidates stale GUIs on reload
+| Type | Field | Description |
+|---|---|---|
+| `int` | `page` | Page number (0-based) |
+| `int` | `itemsPerPage` | Items per page |
+| `int` | `offset` | Offset (page × itemsPerPage) |
 
----
+### `Pagination.PageInfo`
 
-#### 4. ItemBuilder vs ItemStackWrapper
-
-⚠️ **ItemStackWrapper is DEPRECATED**:
-
-```java
-// OLD (deprecated)
-new ItemStackWrapper(Material.DIAMOND).setDisplayName("...").build()
-
-// NEW (preferred)
-ItemBuilder.of(Material.DIAMOND).name("...").build()
-```
-
----
-
-#### 5. TaskUtil - Prefer Ticks
-
-⚠️ **Use tick-based methods for better performance**:
-
-```java
-// PREFERRED
-TaskUtil.runSync(() -> {...}, 100L); // 100 ticks
-
-// AVOID (slower)
-TaskUtil.runSync(plugin, () -> {...}, 5L, TimeUnit.SECONDS);
-```
+| Type | Field | Description |
+|---|---|---|
+| `int` | `currentPage` | Current page (1-based) |
+| `int` | `totalPages` | Total pages |
+| `int` | `itemsPerPage` | Items per page |
 
 ---
 
-#### 6. Placeholders - Free Format
+## instance
 
-⚠️ **YOU define the replacement format**:
+### `class InstanceManager`
 
-```java
-// Any format you want
-Placeholders.create()
-    .set("{player}", name)      // Curly braces
-    .set("%player%", name)      // Percent signs
-    .set("$player", name)       // Dollar sign
-    .set("PLAYER_NAME", name);  // Uppercase
+Centralized singleton registry using `ConcurrentHashMap`.
 
-// NO forced format like %s or {0}
-```
+#### Methods
 
----
-
-#### 7. Java 8 Compatibility
-
-⚠️ **Don't use Java 9+ features**:
-
-```java
-// AVOID
-var player = event.getPlayer();       // Java 10+
-record Data(String name) {}           // Java 14+
-player.sendMessage("Text " + value);  // Use String.format instead
-
-// PREFER
-Player player = event.getPlayer();
-String msg = String.format("Text %s", value);
-```
+| Modifier | Return | Method | Description |
+|---|---|---|---|
+| `public static` | `void` | `clearInstances()` | Clear all instances |
+| `public static` | `<T> T` | `registerInstance(Class<? extends T> clazz, T instance)` | Register instance |
+| `public static @Nullable` | `<T> T` | `getInstance(Class<T> clazz)` | Get instance (nullable) |
+| `public static @NotNull` | `<T> T` | `getInstanceOrElseThrow(Class<T> clazz)` | Get instance or throw `NoSuchElementException` |
+| `public static` | `<T> void` | `removeInstance(Class<T> clazz)` | Remove instance |
 
 ---
 
-### Common Gotchas
+## item
 
-#### 1. InstanceManager Usage
+### `final class ItemBuilder`
 
-```java
-// InstanceManager does NOT enforce singleton construction
-// You must handle singleton pattern yourself
+Fluent builder for creating ItemStacks with display name, lore, enchantments, flags, skull textures, and config loading.
 
-public class MyService {
-    private static MyService instance;
-    
-    private MyService() {} // Private constructor
-    
-    public static MyService getInstance() {
-        if (instance == null) {
-            instance = new MyService();
-            InstanceManager.registerInstance(MyService.class, instance);
-        }
-        return instance;
-    }
-}
-```
+#### Static Factory Methods
 
----
+| Return | Method | Description |
+|---|---|---|
+| `ItemBuilder` | `of(Material material)` | Create from material |
+| `ItemBuilder` | `of(ItemStack item)` | Create by copying ItemStack |
+| `@Nullable ItemBuilder` | `fromConfig(ConfigurationSection section)` | Create from config section |
 
-#### 2. FoliaLib Initialization
+#### Builder Methods
 
-⚠️ **FoliaLib is initialized in `KPlugin.onEnable()`**:
+| Return | Method | Description |
+|---|---|---|
+| `ItemBuilder` | `material(Material material)` | Set material |
+| `ItemBuilder` | `amount(int amount)` | Set amount (1-64) |
+| `ItemBuilder` | `name(String name)` | Set display name (& color codes) |
+| `ItemBuilder` | `lore(String... lines)` | Set lore (replaces existing) |
+| `ItemBuilder` | `lore(List<String> lines)` | Set lore from list |
+| `ItemBuilder` | `addLore(String... lines)` | Append lore lines |
+| `ItemBuilder` | `addLore(List<String> lines)` | Append lore from list |
+| `ItemBuilder` | `insertLore(int index, String line)` | Insert lore at index |
+| `ItemBuilder` | `clearLore()` | Clear all lore |
+| `ItemBuilder` | `enchant(Enchantment enchantment, int level)` | Add enchantment |
+| `ItemBuilder` | `enchant(Map<Enchantment, Integer> enchantments)` | Add multiple enchantments |
+| `ItemBuilder` | `removeEnchant(Enchantment enchantment)` | Remove enchantment |
+| `ItemBuilder` | `clearEnchants()` | Clear all enchantments |
+| `ItemBuilder` | `flags(ItemFlag... flags)` | Add item flags |
+| `ItemBuilder` | `hideAll()` | Add all item flags |
+| `ItemBuilder` | `removeFlags(ItemFlag... flags)` | Remove flags |
+| `ItemBuilder` | `customModelData(Integer customModelData)` | Set custom model data |
+| `ItemBuilder` | `unbreakable(boolean unbreakable)` | Set unbreakable |
+| `ItemBuilder` | `unbreakable()` | Make unbreakable |
+| `ItemBuilder` | `glow()` | Add glow effect (Durability 1 + HIDE_ENCHANTS) |
+| `ItemBuilder` | `skull(String value)` | Set skull (player name/UUID/URL/base64) |
+| `ItemBuilder` | `replacePlaceholders(Function<String, String> replacer)` | Set placeholder replacer |
+| `ItemBuilder` | `modify(Consumer<ItemBuilder> consumer)` | Apply consumer for conditional modification |
+| `ItemStack` | `build()` | Build the ItemStack |
 
-```java
-// WRONG - FoliaLib not ready yet
-public class MyPlugin extends KPlugin {
-    public MyPlugin() {
-        TaskUtil.runSync(() -> {}); // WILL FAIL!
-    }
-    
-    // CORRECT
-    @Override
-    protected void enable() {
-        TaskUtil.runSync(() -> {}); // Works!
-    }
-}
-```
+#### Config Section Keys
 
----
-
-#### 3. Color Code Format
-
-⚠️ **Always use `&` codes** (converted automatically):
-
-```java
-// CORRECT
-gui.slot(0).set(ItemBuilder.of(Material.DIAMOND)
-    .name("&bBlue Diamond")
-    .lore("&7Description")
-    .build());
-
-// WRONG - use & not §
-.name("§bBlue Diamond") // Will work but not idiomatic
-```
+| Key | Type | Description |
+|---|---|---|
+| `material` | String | Material name |
+| `name` / `display-name` | String | Display name |
+| `lore` | List | Lore lines |
+| `amount` | Integer | Stack amount (default: 1) |
+| `enchantments` | Section | Enchantment name → level |
+| `flags` | List | ItemFlag names |
+| `custom-model-data` | Integer | Custom model data |
+| `glow` | Boolean | Glow effect |
+| `unbreakable` | Boolean | Unbreakable flag |
+| `skull` / `skull-owner` / `skull-texture` | String | Skull value |
 
 ---
 
-#### 4. Pagination Page Numbers
+### `final class ItemTemplate`
 
-⚠️ **PageInfo.currentPage is 1-based for display**:
+Config-based item template with placeholder and slot support. Stores raw strings, applies placeholders at build time.
 
-```java
-.pageInfoButton(49, info -> ItemBuilder.of(Material.PAPER)
-    // CORRECT - currentPage is already 1-based
-    .name("&6Page " + info.currentPage + "/" + info.totalPages)
-    
-    // WRONG - double increment
-    .name("&6Page " + (info.currentPage + 1) + "/" + info.totalPages)
-    .build())
-```
+#### Static Factory Methods
 
----
+| Return | Method | Description |
+|---|---|---|
+| `@Nullable ItemTemplate` | `fromConfig(ConfigurationSection section)` | Load from config |
+| `Builder` | `builder(Material material)` | Create builder |
 
-#### 5. MessageFile Initialization
+#### Getters
 
-⚠️ **MessageFile auto-initializes MessageUtil**:
+| Return | Method | Description |
+|---|---|---|
+| `Material` | `getMaterial()` | Material |
+| `@Nullable String` | `getName()` | Raw display name |
+| `List<String>` | `getLore()` | Raw lore (copy) |
+| `int` | `getAmount()` | Stack amount |
+| `List<Integer>` | `getSlots()` | Configured slots (copy) |
+| `int` | `getSlot()` | First slot or -1 |
+| `boolean` | `hasSlots()` | Has any slot configured |
+| `boolean` | `isGlow()` | Glow enabled |
+| `boolean` | `isUnbreakable()` | Unbreakable flag |
 
-```java
-// CORRECT order
-MessageFile messages = new MessageFile(plugin);
-MessageUtil.sendMessage(player, "welcome");
+#### Build Methods
 
-// WRONG - MessageUtil not initialized
-MessageUtil.sendMessage(player, "welcome"); // IllegalStateException!
-MessageFile messages = new MessageFile(plugin);
-```
+| Return | Method | Description |
+|---|---|---|
+| `ItemStack` | `build()` | Build without placeholders |
+| `ItemStack` | `build(Map<String, String> placeholders)` | Build with map placeholders |
+| `ItemStack` | `build(Placeholders placeholders)` | Build with Placeholders system |
+| `ItemStack` | `build(Placeholders placeholders, Player player)` | Build with player-aware placeholders |
+| `ItemStack` | `build(Function<String, String> placeholderReplacer)` | Build with custom replacer |
+| `ItemBuilder` | `toBuilder()` | Convert to ItemBuilder |
 
----
+### `ItemTemplate.Builder`
 
-### Performance Tips
-
-1. **Use tick-based scheduling** instead of TimeUnit conversions
-2. **Batch GUI updates** with `refresh()` instead of per-slot updates
-3. **Use FrameAnimation** for complex animations (diff-based)
-4. **Prefer `SlotRangeHandle`** for bulk operations
-5. **Use async loading** for large datasets in Pagination
-6. **Cache ItemBuilder results** if creating same item multiple times
-
----
-
-### Thread Safety
-
-- **InstanceManager**: Thread-safe (ConcurrentHashMap)
-- **Placeholders**: Thread-safe (ConcurrentHashMap)
-- **TaskUtil**: Always routes to correct thread/region
-- **GUI operations**: Must be on main thread (use TaskUtil.runSync)
-- **Config files**: Thread-safe for reading, synchronized for writing
-
----
-
-## Quick Reference Tables
-
-### Common Workflows
-
-| Task | Code |
-|------|------|
-| Create GUI | `GUI.builder(rows).title("...").build()` |
-| Create Item | `ItemBuilder.of(Material.X).name("...").build()` |
-| Register Command | `new MyCmd().registerCommand(plugin)` |
-| Schedule Task | `TaskUtil.runSync(() -> {}, delay)` |
-| Pagination | `Pagination.create(gui, slots).items(list).build()` |
-| Placeholders | `Placeholders.create().set("{key}", val)` |
-| Play Sound | `SoundUtil.playClickSound(player)` |
-| Send Message | `MessageUtil.sendMessage(player, "key")` |
+| Return | Method | Description |
+|---|---|---|
+| `Builder` | `name(String name)` | Set display name |
+| `Builder` | `lore(String... lines)` | Set lore |
+| `Builder` | `lore(List<String> lines)` | Set lore from list |
+| `Builder` | `amount(int amount)` | Set amount |
+| `Builder` | `slot(int slot)` | Add slot |
+| `Builder` | `slots(int... slots)` | Add multiple slots |
+| `Builder` | `enchant(Enchantment enchant, int level)` | Add enchantment |
+| `Builder` | `flags(ItemFlag... flags)` | Add flags |
+| `Builder` | `customModelData(int data)` | Set custom model data |
+| `Builder` | `glow()` / `glow(boolean)` | Glow effect |
+| `Builder` | `unbreakable()` / `unbreakable(boolean)` | Unbreakable |
+| `Builder` | `skull(String value)` | Skull texture |
+| `ItemTemplate` | `build()` | Build template |
 
 ---
 
-### Color Codes
+### `@Deprecated class ItemStackWrapper`
 
-| Code | Color | Code | Format |
-|------|-------|------|--------|
-| `&0` | Black | `&l` | Bold |
-| `&1` | Dark Blue | `&m` | Strikethrough |
-| `&2` | Dark Green | `&n` | Underline |
-| `&3` | Dark Aqua | `&o` | Italic |
-| `&4` | Dark Red | `&r` | Reset |
-| `&5` | Dark Purple | | |
-| `&6` | Gold | | |
-| `&7` | Gray | | |
-| `&8` | Dark Gray | | |
-| `&9` | Blue | | |
-| `&a` | Green | | |
-| `&b` | Aqua | | |
-| `&c` | Red | | |
-| `&d` | Light Purple | | |
-| `&e` | Yellow | | |
-| `&f` | White | | |
+Legacy item wrapper. **Use `ItemBuilder` instead.**
+
+#### Migration Guide
+
+| Legacy | Modern |
+|---|---|
+| `new ItemStackWrapper(material)` | `ItemBuilder.of(material)` |
+| `new ItemStackWrapper(itemStack)` | `ItemBuilder.of(itemStack)` |
+| `setDisplayName(name)` | `name(name)` |
+| `setLore(lines)` | `lore(lines)` |
+| `addLore(lines)` | `addLore(lines)` |
+| `setSkull(value)` | `skull(value)` |
+| `fromConfigurationSection(section)` | `ItemBuilder.fromConfig(section)` |
 
 ---
 
-## Version History
+## placeholder
 
-- **v4.0**: Current version - Added lazy pagination, fixed GUI events, modern API
-- **v3.x**: GUI system with FrameAnimation
-- **v2.x**: Command system and config files
-- **v1.x**: Initial release
+### `final class Placeholders`
+
+Flexible, format-free placeholder replacement system. Thread-safe.
+
+#### Static Factory Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `Placeholders` | `create()` | Create empty instance |
+| `Placeholders` | `of(Map<String, String> values)` | Create from map |
+
+#### Configuration Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `Placeholders` | `set(String key, String value)` | Set static value |
+| `Placeholders` | `set(String key, Object value)` | Set static value (toString) |
+| `Placeholders` | `setAll(Map<String, ?> values)` | Set multiple values |
+| `Placeholders` | `resolver(String key, Supplier<String> resolver)` | Add dynamic resolver |
+| `Placeholders` | `playerResolver(String key, Function<Player, String> resolver)` | Add player-aware resolver |
+| `Placeholders` | `withPlayerPlaceholders()` | Add built-in player placeholders (`{...}` format) |
+| `Placeholders` | `withPlayerPlaceholders(String prefix, String suffix)` | Add player placeholders with custom format |
+| `Placeholders` | `remove(String key)` | Remove placeholder |
+| `Placeholders` | `clear()` | Clear all |
+
+#### Application Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `String` | `apply(String text)` | Apply placeholders |
+| `String` | `apply(String text, Player player)` | Apply with player context |
+| `Placeholders` | `copy()` | Clone instance |
+| `Placeholders` | `merge(Placeholders other)` | Merge other into this |
+| `Function<String, String>` | `toFunction()` | Convert to Function |
+| `Function<String, String>` | `toFunction(Player player)` | Convert to Function with player |
+
+#### Accessor Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `boolean` | `has(String key)` | Check if key exists |
+| `@Nullable String` | `get(String key)` | Get static value |
+| `int` | `size()` | Total placeholder count |
+| `boolean` | `isEmpty()` | Check if empty |
 
 ---
 
-## Support & Resources
+## task
 
-- **Javadoc**: `docs/index.html` (generated by `mvn javadoc:javadoc`)
-- **Test Suite**: `dev.khanh.plugin.kplugin.gui.test.TestGUI`
-- **Example Usage**: See test methods in TestGUI class
-- **Build**: `mvn clean install`
+### `interface ScheduledTask`
+
+| Return | Method | Description |
+|---|---|---|
+| `void` | `cancel()` | Cancel the task |
+| `boolean` | `isCancelled()` | Check cancellation state |
 
 ---
 
-**End of API Reference**
+### `class ScheduledTaskImpl implements ScheduledTask`
+
+Wrapper around FoliaLib's `WrappedTask`.
+
+#### Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `void` | `cancel()` | Cancel |
+| `boolean` | `isCancelled()` | Check cancelled |
+| `WrappedTask` | `unwrap()` | Get underlying FoliaLib task |
+| `static Consumer<WrappedTask>` | `adaptConsumer(Consumer<ScheduledTask> consumer)` | Adapt consumer |
+| `static List<ScheduledTask>` | `wrapList(List<WrappedTask> tasks)` | Wrap list |
+
+---
+
+### `enum TaskResult`
+
+Result of entity-region task execution.
+
+| Constant | Description |
+|---|---|
+| `SUCCESS` | Task executed successfully |
+| `ENTITY_RETIRED` | Entity no longer valid |
+| `SCHEDULER_RETIRED` | Scheduler no longer valid |
+
+| Return | Method |
+|---|---|
+| `static TaskResult` | `from(EntityTaskResult result)` |
+
+---
+
+## util
+
+### `class TaskUtil`
+
+Unified task scheduling utility wrapping FoliaLib. Works on Spigot, Paper, and Folia.
+
+#### Sync Methods (Global Region)
+
+| Return | Method | Description |
+|---|---|---|
+| `CompletableFuture<Void>` | `scheduleSync(Consumer<ScheduledTask> task)` | Schedule with task handle |
+| `void` | `runSync(Runnable task)` | Run next tick |
+| `ScheduledTask` | `runSync(Runnable task, long delay)` | Run after delay (ticks) |
+| `CompletableFuture<Void>` | `scheduleSync(Consumer<ScheduledTask> task, long delay)` | Schedule with delay |
+| `ScheduledTask` | `runSync(Runnable task, long delay, TimeUnit timeUnit)` | Run with TimeUnit delay |
+| `CompletableFuture<Void>` | `scheduleSync(Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit)` | Schedule with TimeUnit |
+| `ScheduledTask` | `runSyncRepeating(Runnable task, long delay, long period)` | Repeating (ticks) |
+| `void` | `scheduleSyncRepeating(Consumer<ScheduledTask> task, long delay, long period)` | Repeating with handle |
+| `ScheduledTask` | `runSyncRepeating(Runnable task, long delay, long period, TimeUnit timeUnit)` | Repeating with TimeUnit |
+| `void` | `scheduleSyncRepeating(Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit)` | Repeating handle + TimeUnit |
+
+#### Async Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `CompletableFuture<Void>` | `scheduleAsync(Consumer<ScheduledTask> task)` | Schedule async with handle |
+| `void` | `runAsync(Runnable task)` | Run immediately async |
+| `ScheduledTask` | `runAsync(Runnable task, long delay)` | Async after delay (ticks) |
+| `CompletableFuture<Void>` | `scheduleAsync(Consumer<ScheduledTask> task, long delay)` | Async with delay + handle |
+| `ScheduledTask` | `runAsync(Runnable task, long delay, TimeUnit timeUnit)` | Async with TimeUnit |
+| `CompletableFuture<Void>` | `scheduleAsync(Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit)` | Async handle + TimeUnit |
+| `ScheduledTask` | `runAsyncRepeating(Runnable task, long delay, long period)` | Repeating async (ticks) |
+| `void` | `scheduleAsyncRepeating(Consumer<ScheduledTask> task, long delay, long period)` | Repeating async + handle |
+| `ScheduledTask` | `runAsyncRepeating(Runnable task, long delay, long period, TimeUnit timeUnit)` | Repeating async + TimeUnit |
+| `void` | `scheduleAsyncRepeating(Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit)` | Repeating async handle + TimeUnit |
+
+#### Entity Region Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `CompletableFuture<TaskResult>` | `scheduleAtEntity(Entity entity, Consumer<ScheduledTask> task)` | Schedule on entity's region |
+| `void` | `runAtEntity(Entity entity, Runnable task)` | Run on entity's region |
+| `CompletableFuture<TaskResult>` | `scheduleAtEntityWithFallback(Entity, Consumer<ScheduledTask>, Runnable fallback)` | With fallback |
+| `ScheduledTask` | `runAtEntity(Entity entity, Runnable task, long delay)` | Entity region + delay |
+| `CompletableFuture<Void>` | `scheduleAtEntity(Entity entity, Consumer<ScheduledTask> task, long delay)` | Schedule + delay |
+| `ScheduledTask` | `runAtEntity(Entity entity, Runnable task, Runnable fallback, long delay)` | With fallback + delay |
+| `CompletableFuture<Void>` | `scheduleAtEntity(Entity, Consumer<ScheduledTask>, Runnable fallback, long delay)` | Schedule fallback + delay |
+| `ScheduledTask` | `runAtEntity(Entity entity, Runnable task, long delay, TimeUnit timeUnit)` | Entity + TimeUnit |
+| `CompletableFuture<Void>` | `scheduleAtEntity(Entity, Consumer<ScheduledTask>, long delay, TimeUnit)` | Schedule + TimeUnit |
+| `ScheduledTask` | `runAtEntityRepeating(Entity entity, Runnable task, long delay, long period)` | Repeating at entity |
+| `ScheduledTask` | `runAtEntityRepeating(Entity, Runnable, Runnable fallback, long delay, long period)` | Repeating + fallback |
+| `void` | `scheduleAtEntityRepeating(Entity, Consumer<ScheduledTask>, long delay, long period)` | Schedule repeating |
+| `void` | `scheduleAtEntityRepeating(Entity, Consumer<ScheduledTask>, Runnable, long, long)` | Schedule + fallback |
+| `ScheduledTask` | `runAtEntityRepeating(Entity, Runnable, long delay, long period, TimeUnit)` | Repeating + TimeUnit |
+| `void` | `scheduleAtEntityRepeating(Entity, Consumer<ScheduledTask>, long, long, TimeUnit)` | Schedule + TimeUnit |
+
+#### Location Region Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `CompletableFuture<Void>` | `scheduleAtLocation(Location, Consumer<ScheduledTask>)` | Schedule at location |
+| `void` | `runAtLocation(Location, Runnable)` | Run at location |
+| `ScheduledTask` | `runAtLocation(Location, Runnable, long delay)` | Location + delay |
+| `CompletableFuture<Void>` | `scheduleAtLocation(Location, Consumer<ScheduledTask>, long delay)` | Schedule + delay |
+| `ScheduledTask` | `runAtLocation(Location, Runnable, long delay, TimeUnit)` | Location + TimeUnit |
+| `CompletableFuture<Void>` | `scheduleAtLocation(Location, Consumer<ScheduledTask>, long delay, TimeUnit)` | Schedule + TimeUnit |
+| `ScheduledTask` | `runAtLocationRepeating(Location, Runnable, long delay, long period)` | Repeating at location |
+| `void` | `scheduleAtLocationRepeating(Location, Consumer<ScheduledTask>, long, long)` | Schedule repeating |
+| `ScheduledTask` | `runAtLocationRepeating(Location, Runnable, long, long, TimeUnit)` | Repeating + TimeUnit |
+| `void` | `scheduleAtLocationRepeating(Location, Consumer<ScheduledTask>, long, long, TimeUnit)` | Schedule + TimeUnit |
+
+#### Utility Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `boolean` | `isOwnedByCurrentRegion(Location location)` | Check location ownership |
+| `boolean` | `isOwnedByCurrentRegion(Location location, int radius)` | Check with radius |
+| `boolean` | `isOwnedByCurrentRegion(Block block)` | Check block ownership |
+| `boolean` | `isOwnedByCurrentRegion(World world, int x, int z)` | Check coordinates |
+| `boolean` | `isOwnedByCurrentRegion(World world, int x, int y, int z)` | Check 3D coordinates |
+| `boolean` | `isOwnedByCurrentRegion(Entity entity)` | Check entity ownership |
+| `void` | `cancel(ScheduledTask task)` | Cancel a task |
+| `void` | `cancelTask(ScheduledTask task)` | Cancel via scheduler |
+| `void` | `cancelAllTasks()` | Cancel all plugin tasks |
+| `List<ScheduledTask>` | `getAllTasks()` | Get all plugin tasks |
+| `List<ScheduledTask>` | `getAllServerTasks()` | Get all server tasks |
+| `ScheduledTask` | `wrapTask(Object task)` | Wrap Bukkit task |
+| `boolean` | `isGlobalTickThread()` | Check if on global tick thread |
+| `boolean` | `isFolia()` | Check if running on Folia |
+
+---
+
+### `class ColorUtil`
+
+Text colorization utility.
+
+#### Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `static String` | `colorize(String input)` | Convert `&` codes to legacy `§` colored string |
+| `static Component` | `modernColorize(String input)` | Convert `&` codes to Adventure Component |
+
+---
+
+### `class LoggerUtil`
+
+Plugin-prefixed logging with debug mode.
+
+#### Fields
+
+| Modifier | Type | Name | Description |
+|---|---|---|---|
+| `private static` | `boolean` | `debugEnabled` | Debug mode flag |
+
+#### Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `static void` | `setDebug(boolean enabled)` | Enable/disable debug |
+| `static boolean` | `isDebug()` | Check debug state |
+| `static void` | `info(String message)` | Log info |
+| `static void` | `info(String message, Object... args)` | Log formatted info |
+| `static void` | `warning(String message)` | Log warning |
+| `static void` | `warning(String message, Object... args)` | Log formatted warning |
+| `static void` | `severe(String message)` | Log severe |
+| `static void` | `severe(String message, Object... args)` | Log formatted severe |
+| `static void` | `message(String message)` | Send colorized console message |
+| `static void` | `message(String message, Object... args)` | Send formatted colorized console message |
+| `static void` | `debug(String message)` | Log debug (only if enabled) |
+| `static void` | `debug(String message, Object... args)` | Log formatted debug |
+
+---
+
+### `class MessageUtil`
+
+Static proxy for `MessageFile`. Auto-initialized when `MessageFile` is constructed.
+
+#### Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `static void` | `initialize(MessageFile messageFile)` | Set the backing MessageFile |
+| `static @NotNull String` | `getMessage(String key)` | Raw message by key |
+| `static @NotNull String` | `getMessage(String key, Function<String, String> function)` | Message with transformation |
+| `static @NotNull String` | `getColorizedMessage(String key)` | Legacy-colorized message |
+| `static @NotNull String` | `getColorizedMessage(String key, Function<String, String> function)` | Colorized with transformation |
+| `static @NotNull Component` | `getModernColorizedMessage(String key)` | Adventure Component message |
+| `static @NotNull Component` | `getModernColorizedMessage(String key, Function<String, String> function)` | Component with transformation |
+| `static void` | `sendMessage(CommandSender sender, String key, Function<String, String> function, boolean allowEmpty)` | Send prefixed message |
+| `static void` | `sendMessage(CommandSender sender, String key, Function<String, String> function)` | Send prefixed (skip empty) |
+| `static void` | `sendMessage(CommandSender sender, String key)` | Send prefixed (skip empty) |
+| `static void` | `sendMessage(CommandSender sender, String key, boolean allowEmpty)` | Send prefixed |
+| `static void` | `sendMessageWithPrefix(CommandSender sender, String message)` | Send raw with prefix |
+
+---
+
+### `class TeleportUtil`
+
+Async teleportation utility wrapping FoliaLib.
+
+#### Methods
+
+| Return | Method | Description |
+|---|---|---|
+| `static CompletableFuture<Boolean>` | `teleportAsync(Entity entity, Location location)` | Teleport async |
+| `static CompletableFuture<Boolean>` | `teleportAsync(Entity entity, Location location, TeleportCause cause)` | Teleport async with cause |
+
+> **Platform behavior:** Folia → async region. Paper → async if supported. Spigot → next tick.
+
+---
+
+### `class SoundUtil`
+
+Multi-version sound utility with legacy-to-modern mapping.
+
+#### Sound Playback
+
+| Return | Method | Description |
+|---|---|---|
+| `static void` | `play(Player player, String soundName, float volume, float pitch)` | Play at player location |
+| `static void` | `play(Player player, Location location, String soundName, float volume, float pitch)` | Play at location |
+| `static void` | `playUnsafe(Player player, String soundName, float volume, float pitch)` | Play without error catching |
+| `static boolean` | `isValidSound(String soundName)` | Check if sound name is valid |
+
+#### Predefined Sounds
+
+| Return | Method | Sound |
+|---|---|---|
+| `static void` | `playClickSound(Player)` | `ui.button.click` |
+| `static void` | `playOpenSound(Player)` | `block.chest.open` |
+| `static void` | `playCloseSound(Player)` | `block.chest.close` |
+| `static void` | `playNavigateSound(Player)` | `entity.experience_orb.pickup` (0.5 vol, 1.2 pitch) |
+| `static void` | `playErrorSound(Player)` | `entity.villager.no` |
+| `static void` | `playSuccessSound(Player)` | `entity.player.levelup` |
+
+#### Legacy Mappings
+
+| Legacy Name | Modern Name |
+|---|---|
+| `CLICK` / `UI_BUTTON_CLICK` | `ui.button.click` |
+| `LEVEL_UP` / `ENTITY_PLAYER_LEVELUP` | `entity.player.levelup` |
+| `CHEST_OPEN` / `BLOCK_CHEST_OPEN` | `block.chest.open` |
+| `CHEST_CLOSE` / `BLOCK_CHEST_CLOSE` | `block.chest.close` |
+| `NOTE_PLING` / `BLOCK_NOTE_BLOCK_PLING` | `block.note_block.pling` |
+| `ORB_PICKUP` / `ENTITY_EXPERIENCE_ORB_PICKUP` | `entity.experience_orb.pickup` |
+| `VILLAGER_NO` / `ENTITY_VILLAGER_NO` | `entity.villager.no` |
+| `VILLAGER_YES` / `ENTITY_VILLAGER_YES` | `entity.villager.yes` |
