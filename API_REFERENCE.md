@@ -1404,6 +1404,12 @@ SoundUtil.playSound(location, "block.note_block.pling", 1.0f, 2.0f);
 
 **Purpose**: Unified task scheduling for Spigot/Paper/Folia compatibility. Uses intermediate abstractions (`ScheduledTask`, `TaskResult`) to decouple from the underlying FoliaLib scheduler.
 
+> **Naming Convention**: Methods follow a consistent naming pattern:
+> - **`run*()`** methods accept a `Runnable` — fire-and-forget tasks.
+> - **`schedule*()`** methods accept a `Consumer<ScheduledTask>` — the callback receives its own task handle, enabling self-cancellation or inspection.
+>
+> This distinction resolves Kotlin SAM overload ambiguity.
+
 #### Global Region (Sync)
 
 | Method | Parameters | Description |
@@ -1414,6 +1420,11 @@ SoundUtil.playSound(location, "block.note_block.pling", 1.0f, 2.0f);
 | `runSync()` | `Plugin, Runnable, long, TimeUnit` | Custom unit |
 | `runSyncRepeating()` | `Runnable, long, long` | Repeating (ticks) |
 | `runSyncRepeating()` | `Plugin, Runnable, long, long, TimeUnit` | Custom unit |
+| `scheduleSync()` | `Consumer<ScheduledTask>` | Next tick (with task handle) |
+| `scheduleSync()` | `Consumer<ScheduledTask>, long` | Delayed (ticks, with task handle) |
+| `scheduleSync()` | `Consumer<ScheduledTask>, long, TimeUnit` | Custom unit (with task handle) |
+| `scheduleSyncRepeating()` | `Consumer<ScheduledTask>, long, long` | Repeating (ticks, with task handle) |
+| `scheduleSyncRepeating()` | `Consumer<ScheduledTask>, long, long, TimeUnit` | Custom unit (with task handle) |
 
 #### Async Thread
 
@@ -1423,6 +1434,11 @@ SoundUtil.playSound(location, "block.note_block.pling", 1.0f, 2.0f);
 | `runAsync()` | `Plugin, Runnable` | Immediate |
 | `runAsync()` | `Runnable, long` | Delayed (ticks) |
 | `runAsyncRepeating()` | `Runnable, long, long` | Repeating (ticks) |
+| `scheduleAsync()` | `Consumer<ScheduledTask>` | Immediate (with task handle) |
+| `scheduleAsync()` | `Consumer<ScheduledTask>, long` | Delayed (ticks, with task handle) |
+| `scheduleAsync()` | `Consumer<ScheduledTask>, long, TimeUnit` | Custom unit (with task handle) |
+| `scheduleAsyncRepeating()` | `Consumer<ScheduledTask>, long, long` | Repeating (ticks, with task handle) |
+| `scheduleAsyncRepeating()` | `Consumer<ScheduledTask>, long, long, TimeUnit` | Custom unit (with task handle) |
 
 #### Entity Region (Folia)
 
@@ -1431,8 +1447,20 @@ SoundUtil.playSound(location, "block.note_block.pling", 1.0f, 2.0f);
 | `runAtEntity()` | `Entity, Runnable` | Immediate |
 | `runAtEntity()` | `Plugin, Entity, Runnable` | Immediate |
 | `runAtEntity()` | `Entity, Runnable, long` | Delayed |
+| `runAtEntity()` | `Entity, Runnable, Runnable, long` | Delayed (with fallback) |
+| `runAtEntity()` | `Entity, Runnable, long, TimeUnit` | Custom unit |
 | `runAtEntityRepeating()` | `Entity, Runnable, long, long` | Repeating |
-| Variants with `Runnable retired` | | For invalid entity |
+| `runAtEntityRepeating()` | `Entity, Runnable, Runnable, long, long` | Repeating (with fallback) |
+| `runAtEntityRepeating()` | `Entity, Runnable, long, long, TimeUnit` | Custom unit |
+| `scheduleAtEntity()` | `Entity, Consumer<ScheduledTask>` | Immediate (with task handle) |
+| `scheduleAtEntityWithFallback()` | `Entity, Consumer<ScheduledTask>, Runnable` | Immediate (with fallback & task handle) |
+| `scheduleAtEntity()` | `Entity, Consumer<ScheduledTask>, long` | Delayed (with task handle) |
+| `scheduleAtEntity()` | `Entity, Consumer<ScheduledTask>, Runnable, long` | Delayed (with fallback & task handle) |
+| `scheduleAtEntity()` | `Entity, Consumer<ScheduledTask>, long, TimeUnit` | Custom unit (with task handle) |
+| `scheduleAtEntityRepeating()` | `Entity, Consumer<ScheduledTask>, long, long` | Repeating (with task handle) |
+| `scheduleAtEntityRepeating()` | `Entity, Consumer<ScheduledTask>, Runnable, long, long` | Repeating (with fallback & task handle) |
+| `scheduleAtEntityRepeating()` | `Entity, Consumer<ScheduledTask>, long, long, TimeUnit` | Custom unit (with task handle) |
+| Variants with `Runnable retired/fallback` | | For invalid entity |
 
 #### Location Region (Folia)
 
@@ -1441,7 +1469,14 @@ SoundUtil.playSound(location, "block.note_block.pling", 1.0f, 2.0f);
 | `runAtLocation()` | `Location, Runnable` | Immediate |
 | `runAtLocation()` | `Plugin, Location, Runnable` | Immediate |
 | `runAtLocation()` | `Location, Runnable, long` | Delayed |
+| `runAtLocation()` | `Location, Runnable, long, TimeUnit` | Custom unit |
 | `runAtLocationRepeating()` | `Location, Runnable, long, long` | Repeating |
+| `runAtLocationRepeating()` | `Location, Runnable, long, long, TimeUnit` | Custom unit |
+| `scheduleAtLocation()` | `Location, Consumer<ScheduledTask>` | Immediate (with task handle) |
+| `scheduleAtLocation()` | `Location, Consumer<ScheduledTask>, long` | Delayed (with task handle) |
+| `scheduleAtLocation()` | `Location, Consumer<ScheduledTask>, long, TimeUnit` | Custom unit (with task handle) |
+| `scheduleAtLocationRepeating()` | `Location, Consumer<ScheduledTask>, long, long` | Repeating (with task handle) |
+| `scheduleAtLocationRepeating()` | `Location, Consumer<ScheduledTask>, long, long, TimeUnit` | Custom unit (with task handle) |
 
 #### Task Management
 
@@ -1463,7 +1498,8 @@ SoundUtil.playSound(location, "block.note_block.pling", 1.0f, 2.0f);
 #### Important Notes
 
 - ⚠️ **Prefer tick-based methods** over TimeUnit for performance
-- Returns `ScheduledTask` for cancellation
+- `run*()` methods accept `Runnable` (fire-and-forget); `schedule*()` methods accept `Consumer<ScheduledTask>` (task handle for self-cancellation/inspection)
+- `run*()` methods return `ScheduledTask` or `void`; `schedule*()` methods return `CompletableFuture<Void>` or `void`
 - Scheduler initialized by `KPlugin`
 - All delays/periods in ticks by default (20 ticks = 1 second)
 
@@ -1502,6 +1538,28 @@ TaskUtil.runAsync(() -> {
 // Entity region (Folia)
 TaskUtil.runAtEntity(player, () -> {
     player.sendMessage("Entity region!");
+});
+
+// --- schedule* variants (Consumer<ScheduledTask>) ---
+
+// Self-cancelling repeating task
+TaskUtil.scheduleSyncRepeating(task -> {
+    if (someCondition()) {
+        task.cancel(); // Cancel from within the callback
+        return;
+    }
+    player.sendMessage("Still running...");
+}, 0L, 20L);
+
+// Async with task handle
+TaskUtil.scheduleAsync(task -> {
+    List<Data> data = database.query();
+    TaskUtil.runSync(() -> processData(data));
+});
+
+// Entity region with task handle (Folia)
+TaskUtil.scheduleAtEntity(player, task -> {
+    player.sendMessage("Entity region with task handle!");
 });
 ```
 

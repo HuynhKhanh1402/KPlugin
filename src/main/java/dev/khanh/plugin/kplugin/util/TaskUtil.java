@@ -38,13 +38,14 @@ public class TaskUtil {
     // ==================== Sync Methods (Global Region) ====================
 
     /**
-     * Runs a task synchronously on the global region (main thread for Spigot/Paper).
-     * Executes on the next tick.
+     * Schedules a task synchronously on the global region (main thread for Spigot/Paper).
+     * Executes on the next tick. The task receives its own {@link ScheduledTask} handle
+     * for self-cancellation or inspection.
      *
-     * @param task the task to run
+     * @param task the task to run, receiving its own task handle
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runSync(Consumer<ScheduledTask> task) {
+    public static CompletableFuture<Void> scheduleSync(Consumer<ScheduledTask> task) {
         return KPlugin.getFoliaLib().getScheduler().runNextTick(ScheduledTaskImpl.adaptConsumer(task));
     }
 
@@ -70,13 +71,14 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a task synchronously on the global region after a specified delay.
+     * Schedules a task synchronously on the global region after a specified delay.
+     * The task receives its own {@link ScheduledTask} handle.
      *
-     * @param task  the task to run
+     * @param task  the task to run, receiving its own task handle
      * @param delay the delay before the task is executed
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runSync(Consumer<ScheduledTask> task, long delay) {
+    public static CompletableFuture<Void> scheduleSync(Consumer<ScheduledTask> task, long delay) {
         return KPlugin.getFoliaLib().getScheduler().runLater(ScheduledTaskImpl.adaptConsumer(task), delay);
     }
 
@@ -93,14 +95,15 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a task synchronously on the global region after a specified delay.
+     * Schedules a task synchronously on the global region after a specified delay.
+     * The task receives its own {@link ScheduledTask} handle.
      *
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param delay    the delay before the task is executed
      * @param timeUnit the time unit of the delay
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runSync(Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit) {
+    public static CompletableFuture<Void> scheduleSync(Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit) {
         return KPlugin.getFoliaLib().getScheduler().runLater(ScheduledTaskImpl.adaptConsumer(task), delay, timeUnit);
     }
 
@@ -117,13 +120,14 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a repeating task synchronously on the global region.
+     * Schedules a repeating task synchronously on the global region.
+     * The task receives its own {@link ScheduledTask} handle.
      *
-     * @param task   the task to run
+     * @param task   the task to run, receiving its own task handle
      * @param delay  the delay in ticks before the first execution
      * @param period the period in ticks between executions
      */
-    public static void runSyncRepeating(Consumer<ScheduledTask> task, long delay, long period) {
+    public static void scheduleSyncRepeating(Consumer<ScheduledTask> task, long delay, long period) {
         KPlugin.getFoliaLib().getScheduler().runTimer(ScheduledTaskImpl.adaptConsumer(task), delay, period);
     }
 
@@ -141,27 +145,29 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a repeating task synchronously on the global region.
+     * Schedules a repeating task synchronously on the global region.
+     * The task receives its own {@link ScheduledTask} handle.
      *
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param delay    the delay before the first execution
      * @param period   the period between executions
      * @param timeUnit the time unit of the delay and period
      */
-    public static void runSyncRepeating(Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit) {
+    public static void scheduleSyncRepeating(Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit) {
         KPlugin.getFoliaLib().getScheduler().runTimer(ScheduledTaskImpl.adaptConsumer(task), delay, period, timeUnit);
     }
 
     // ==================== Async Methods ====================
 
     /**
-     * Runs a task asynchronously in a separate thread.
-     * Executes immediately on async thread.
+     * Schedules a task asynchronously in a separate thread.
+     * Executes immediately on async thread. The task receives its own {@link ScheduledTask}
+     * handle for self-cancellation or inspection.
      *
-     * @param task the task to run
+     * @param task the task to run, receiving its own task handle
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAsync(Consumer<ScheduledTask> task) {
+    public static CompletableFuture<Void> scheduleAsync(Consumer<ScheduledTask> task) {
         return KPlugin.getFoliaLib().getScheduler().runAsync(ScheduledTaskImpl.adaptConsumer(task));
     }
 
@@ -187,13 +193,14 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a task asynchronously in a separate thread after a specified delay.
+     * Schedules a task asynchronously in a separate thread after a specified delay.
+     * The task receives its own {@link ScheduledTask} handle.
      *
-     * @param task  the task to run
+     * @param task  the task to run, receiving its own task handle
      * @param delay the delay before the task is executed
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAsync(Consumer<ScheduledTask> task, long delay) {
+    public static CompletableFuture<Void> scheduleAsync(Consumer<ScheduledTask> task, long delay) {
         return KPlugin.getFoliaLib().getScheduler().runLaterAsync(ScheduledTaskImpl.adaptConsumer(task), delay);
     }
 
@@ -210,14 +217,15 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a task asynchronously in a separate thread after a specified delay.
+     * Schedules a task asynchronously in a separate thread after a specified delay.
+     * The task receives its own {@link ScheduledTask} handle.
      *
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param delay    the delay before the task is executed
      * @param timeUnit the time unit of the delay
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAsync(Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit) {
+    public static CompletableFuture<Void> scheduleAsync(Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit) {
         return KPlugin.getFoliaLib().getScheduler().runLaterAsync(ScheduledTaskImpl.adaptConsumer(task), delay, timeUnit);
     }
 
@@ -234,13 +242,14 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a repeating task asynchronously in a separate thread.
+     * Schedules a repeating task asynchronously in a separate thread.
+     * The task receives its own {@link ScheduledTask} handle.
      *
-     * @param task   the task to run
+     * @param task   the task to run, receiving its own task handle
      * @param delay  the delay in ticks before the first execution
      * @param period the period in ticks between executions
      */
-    public static void runAsyncRepeating(Consumer<ScheduledTask> task, long delay, long period) {
+    public static void scheduleAsyncRepeating(Consumer<ScheduledTask> task, long delay, long period) {
         KPlugin.getFoliaLib().getScheduler().runTimerAsync(ScheduledTaskImpl.adaptConsumer(task), delay, period);
     }
 
@@ -258,30 +267,31 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a repeating task asynchronously in a separate thread.
+     * Schedules a repeating task asynchronously in a separate thread.
+     * The task receives its own {@link ScheduledTask} handle.
      *
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param delay    the delay before the first execution
      * @param period   the period between executions
      * @param timeUnit the time unit of the delay and period
      */
-    public static void runAsyncRepeating(Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit) {
+    public static void scheduleAsyncRepeating(Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit) {
         KPlugin.getFoliaLib().getScheduler().runTimerAsync(ScheduledTaskImpl.adaptConsumer(task), delay, period, timeUnit);
     }
 
     // ==================== Entity Region Methods ====================
 
     /**
-     * Runs a task on the region that owns the specified entity.
+     * Schedules a task on the region that owns the specified entity.
      * For Folia: Runs on the entity's region thread.
      * For Spigot/Paper: Runs on the main thread.
-     * Executes immediately.
+     * Executes immediately. The task receives its own {@link ScheduledTask} handle.
      *
      * @param entity the entity whose region will execute the task
-     * @param task   the task to run
+     * @param task   the task to run, receiving its own task handle
      * @return CompletableFuture with TaskResult indicating the result
      */
-    public static CompletableFuture<TaskResult> runAtEntity(Entity entity, Consumer<ScheduledTask> task) {
+    public static CompletableFuture<TaskResult> scheduleAtEntity(Entity entity, Consumer<ScheduledTask> task) {
         return KPlugin.getFoliaLib().getScheduler().runAtEntity(entity, ScheduledTaskImpl.adaptConsumer(task))
                 .thenApply(TaskResult::from);
     }
@@ -300,17 +310,17 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a task on the region that owns the specified entity with a fallback.
+     * Schedules a task on the region that owns the specified entity with a fallback.
      * For Folia: Runs on the entity's region thread.
      * For Spigot/Paper: Runs on the main thread.
-     * Executes immediately.
+     * Executes immediately. The task receives its own {@link ScheduledTask} handle.
      *
      * @param entity   the entity whose region will execute the task
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param fallback the fallback task to run if entity is invalid
      * @return CompletableFuture with TaskResult indicating the result
      */
-    public static CompletableFuture<TaskResult> runAtEntityWithFallback(Entity entity, Consumer<ScheduledTask> task, Runnable fallback) {
+    public static CompletableFuture<TaskResult> scheduleAtEntityWithFallback(Entity entity, Consumer<ScheduledTask> task, Runnable fallback) {
         return KPlugin.getFoliaLib().getScheduler().runAtEntityWithFallback(entity, ScheduledTaskImpl.adaptConsumer(task), fallback)
                 .thenApply(TaskResult::from);
     }
@@ -328,14 +338,15 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a task on the region that owns the specified entity after a delay.
+     * Schedules a task on the region that owns the specified entity after a delay.
+     * The task receives its own {@link ScheduledTask} handle.
      *
      * @param entity the entity whose region will execute the task
-     * @param task   the task to run
+     * @param task   the task to run, receiving its own task handle
      * @param delay  the delay before the task is executed
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAtEntity(Entity entity, Consumer<ScheduledTask> task, long delay) {
+    public static CompletableFuture<Void> scheduleAtEntity(Entity entity, Consumer<ScheduledTask> task, long delay) {
         return KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, ScheduledTaskImpl.adaptConsumer(task), delay);
     }
 
@@ -353,15 +364,16 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a task on the region that owns the specified entity after a delay with a fallback.
+     * Schedules a task on the region that owns the specified entity after a delay with a fallback.
+     * The task receives its own {@link ScheduledTask} handle.
      *
      * @param entity   the entity whose region will execute the task
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param fallback the fallback task to run if entity is invalid
      * @param delay    the delay before the task is executed
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAtEntity(Entity entity, Consumer<ScheduledTask> task, Runnable fallback, long delay) {
+    public static CompletableFuture<Void> scheduleAtEntity(Entity entity, Consumer<ScheduledTask> task, Runnable fallback, long delay) {
         return KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, ScheduledTaskImpl.adaptConsumer(task), fallback, delay);
     }
 
@@ -379,15 +391,16 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a task on the region that owns the specified entity after a delay.
+     * Schedules a task on the region that owns the specified entity after a delay.
+     * The task receives its own {@link ScheduledTask} handle.
      *
      * @param entity   the entity whose region will execute the task
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param delay    the delay before the task is executed
      * @param timeUnit the time unit of the delay
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAtEntity(Entity entity, Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit) {
+    public static CompletableFuture<Void> scheduleAtEntity(Entity entity, Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit) {
         return KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, ScheduledTaskImpl.adaptConsumer(task), delay, timeUnit);
     }
 
@@ -419,27 +432,29 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a repeating task on the region that owns the specified entity.
+     * Schedules a repeating task on the region that owns the specified entity.
+     * The task receives its own {@link ScheduledTask} handle.
      *
      * @param entity the entity whose region will execute the task
-     * @param task   the task to run
+     * @param task   the task to run, receiving its own task handle
      * @param delay  the delay in ticks before the first execution
      * @param period the period in ticks between executions
      */
-    public static void runAtEntityRepeating(Entity entity, Consumer<ScheduledTask> task, long delay, long period) {
+    public static void scheduleAtEntityRepeating(Entity entity, Consumer<ScheduledTask> task, long delay, long period) {
         KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, ScheduledTaskImpl.adaptConsumer(task), delay, period);
     }
 
     /**
-     * Runs a repeating task on the region that owns the specified entity with a fallback.
+     * Schedules a repeating task on the region that owns the specified entity with a fallback.
+     * The task receives its own {@link ScheduledTask} handle.
      *
      * @param entity   the entity whose region will execute the task
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param fallback the fallback task to run if entity is invalid
      * @param delay    the delay in ticks before the first execution
      * @param period   the period in ticks between executions
      */
-    public static void runAtEntityRepeating(Entity entity, Consumer<ScheduledTask> task, Runnable fallback, long delay, long period) {
+    public static void scheduleAtEntityRepeating(Entity entity, Consumer<ScheduledTask> task, Runnable fallback, long delay, long period) {
         KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, ScheduledTaskImpl.adaptConsumer(task), fallback, delay, period);
     }
 
@@ -458,31 +473,32 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a repeating task on the region that owns the specified entity.
+     * Schedules a repeating task on the region that owns the specified entity.
+     * The task receives its own {@link ScheduledTask} handle.
      *
      * @param entity   the entity whose region will execute the task
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param delay    the delay before the first execution
      * @param period   the period between executions
      * @param timeUnit the time unit of the delay and period
      */
-    public static void runAtEntityRepeating(Entity entity, Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit) {
+    public static void scheduleAtEntityRepeating(Entity entity, Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit) {
         KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, ScheduledTaskImpl.adaptConsumer(task), delay, period, timeUnit);
     }
 
     // ==================== Location Region Methods ====================
 
     /**
-     * Runs a task on the region that owns the specified location.
+     * Schedules a task on the region that owns the specified location.
      * For Folia: Runs on the location's region thread.
      * For Spigot/Paper: Runs on the main thread.
-     * Executes immediately.
+     * Executes immediately. The task receives its own {@link ScheduledTask} handle.
      *
      * @param location the location whose region will execute the task
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAtLocation(Location location, Consumer<ScheduledTask> task) {
+    public static CompletableFuture<Void> scheduleAtLocation(Location location, Consumer<ScheduledTask> task) {
         return KPlugin.getFoliaLib().getScheduler().runAtLocation(location, ScheduledTaskImpl.adaptConsumer(task));
     }
 
@@ -512,14 +528,15 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a task on the region that owns the specified location after a delay.
+     * Schedules a task on the region that owns the specified location after a delay.
+     * The task receives its own {@link ScheduledTask} handle.
      *
      * @param location the location whose region will execute the task
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param delay    the delay before the task is executed
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAtLocation(Location location, Consumer<ScheduledTask> task, long delay) {
+    public static CompletableFuture<Void> scheduleAtLocation(Location location, Consumer<ScheduledTask> task, long delay) {
         return KPlugin.getFoliaLib().getScheduler().runAtLocationLater(location, ScheduledTaskImpl.adaptConsumer(task), delay);
     }
 
@@ -537,15 +554,16 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a task on the region that owns the specified location after a delay.
+     * Schedules a task on the region that owns the specified location after a delay.
+     * The task receives its own {@link ScheduledTask} handle.
      *
      * @param location the location whose region will execute the task
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param delay    the delay before the task is executed
      * @param timeUnit the time unit of the delay
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAtLocation(Location location, Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit) {
+    public static CompletableFuture<Void> scheduleAtLocation(Location location, Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit) {
         return KPlugin.getFoliaLib().getScheduler().runAtLocationLater(location, ScheduledTaskImpl.adaptConsumer(task), delay, timeUnit);
     }
 
@@ -563,14 +581,15 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a repeating task on the region that owns the specified location.
+     * Schedules a repeating task on the region that owns the specified location.
+     * The task receives its own {@link ScheduledTask} handle.
      *
      * @param location the location whose region will execute the task
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param delay    the delay in ticks before the first execution
      * @param period   the period in ticks between executions
      */
-    public static void runAtLocationRepeating(Location location, Consumer<ScheduledTask> task, long delay, long period) {
+    public static void scheduleAtLocationRepeating(Location location, Consumer<ScheduledTask> task, long delay, long period) {
         KPlugin.getFoliaLib().getScheduler().runAtLocationTimer(location, ScheduledTaskImpl.adaptConsumer(task), delay, period);
     }
 
@@ -589,15 +608,16 @@ public class TaskUtil {
     }
 
     /**
-     * Runs a repeating task on the region that owns the specified location.
+     * Schedules a repeating task on the region that owns the specified location.
+     * The task receives its own {@link ScheduledTask} handle.
      *
      * @param location the location whose region will execute the task
-     * @param task     the task to run
+     * @param task     the task to run, receiving its own task handle
      * @param delay    the delay before the first execution
      * @param period   the period between executions
      * @param timeUnit the time unit of the delay and period
      */
-    public static void runAtLocationRepeating(Location location, Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit) {
+    public static void scheduleAtLocationRepeating(Location location, Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit) {
         KPlugin.getFoliaLib().getScheduler().runAtLocationTimer(location, ScheduledTaskImpl.adaptConsumer(task), delay, period, timeUnit);
     }
 
