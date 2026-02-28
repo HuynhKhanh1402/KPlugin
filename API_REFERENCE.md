@@ -1402,7 +1402,7 @@ SoundUtil.playSound(location, "block.note_block.pling", 1.0f, 2.0f);
 
 **Package**: `dev.khanh.plugin.kplugin.util`
 
-**Purpose**: Unified task scheduling using FoliaLib for Spigot/Paper/Folia compatibility.
+**Purpose**: Unified task scheduling for Spigot/Paper/Folia compatibility. Uses intermediate abstractions (`ScheduledTask`, `TaskResult`) to decouple from the underlying FoliaLib scheduler.
 
 #### Global Region (Sync)
 
@@ -1449,7 +1449,7 @@ SoundUtil.playSound(location, "block.note_block.pling", 1.0f, 2.0f);
 |--------|-------------|-------------|
 | `cancel()` | `void` | Cancel task |
 | `cancelAll()` | `void` | Cancel all |
-| `getTask()` | `WrappedTask` | Get task |
+| `getTask()` | `ScheduledTask` | Get task |
 | `getAllTasks()` | `Collection` | All tasks |
 
 #### Utility
@@ -1463,8 +1463,8 @@ SoundUtil.playSound(location, "block.note_block.pling", 1.0f, 2.0f);
 #### Important Notes
 
 - ⚠️ **Prefer tick-based methods** over TimeUnit for performance
-- Returns `WrappedTask` for cancellation
-- FoliaLib initialized by `KPlugin`
+- Returns `ScheduledTask` for cancellation
+- Scheduler initialized by `KPlugin`
 - All delays/periods in ticks by default (20 ticks = 1 second)
 
 #### Example
@@ -1481,7 +1481,7 @@ TaskUtil.runSync(() -> {
 }, 100L); // 100 ticks = 5 seconds
 
 // Repeating
-WrappedTask task = TaskUtil.runSyncRepeating(() -> {
+ScheduledTask task = TaskUtil.runSyncRepeating(() -> {
     player.sendMessage("Every second!");
 }, 0L, 20L);
 

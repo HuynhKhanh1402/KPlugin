@@ -405,7 +405,7 @@ LoggerUtil.setDebug(true);
 LoggerUtil.debug("Debug info: %s", data);
 ```
 
-### TaskUtil (with FoliaLib support)
+### TaskUtil (with Folia support)
 TaskUtil: dev.khanh.plugin.kplugin.util.TaskUtil
 
 > **⚠️ FOLIA SUPPORT**: KPlugin fully supports Folia with region-based threading. To ensure your plugin works correctly on Spigot/Paper and Folia, **always prioritize using the appropriate task method for the correct context**.
@@ -420,9 +420,9 @@ TaskUtil.runSync(() -> player.teleport(location), 60L);  // 3 seconds delay
 TaskUtil.runSyncRepeating(() -> checkPlayers(), 0L, 20L);  // Every second
 
 // With CompletableFuture (returns CompletableFuture<Void>)
-CompletableFuture<Void> future = TaskUtil.runSync(wrappedTask -> {
+CompletableFuture<Void> future = TaskUtil.runSync(task -> {
     player.teleport(location);
-    // wrappedTask.cancel() if needed
+    // task.cancel() if needed
 });
 future.thenRun(() -> LoggerUtil.info("Teleport completed!"));
 
@@ -439,9 +439,9 @@ TaskUtil.runAsync(() -> processData(), 100L);  // 5 seconds delay
 TaskUtil.runAsyncRepeating(() -> autoSave(), 0L, 6000L);  // Every 5 minutes
 
 // Async with CompletableFuture
-CompletableFuture<Void> asyncFuture = TaskUtil.runAsync(wrappedTask -> {
+CompletableFuture<Void> asyncFuture = TaskUtil.runAsync(task -> {
     processData();
-    // wrappedTask available for cancellation
+    // task available for cancellation
 });
 asyncFuture.thenRun(() -> LoggerUtil.info("Data processed!"));
 
@@ -457,18 +457,18 @@ TaskUtil.runAtEntity(player, () -> {
     player.setHealth(20.0);
 });
 
-// With CompletableFuture (returns CompletableFuture<EntityTaskResult>)
-CompletableFuture<EntityTaskResult> entityFuture = TaskUtil.runAtEntity(player, wrappedTask -> {
+// With CompletableFuture (returns CompletableFuture<TaskResult>)
+CompletableFuture<TaskResult> entityFuture = TaskUtil.runAtEntity(player, task -> {
     player.setHealth(20.0);
 });
 entityFuture.thenAccept(result -> {
-    if (result == EntityTaskResult.SUCCESS) {
+    if (result == TaskResult.SUCCESS) {
         LoggerUtil.info("Health restored!");
     }
 });
 
 // With fallback (runs if entity becomes invalid)
-TaskUtil.runAtEntityWithFallback(player, wrappedTask -> {
+TaskUtil.runAtEntityWithFallback(player, task -> {
     player.setHealth(20.0);
 }, () -> {
     LoggerUtil.warning("Player left before health restore!");
@@ -481,9 +481,9 @@ TaskUtil.runAtEntity(player, () -> player.damage(5), () -> {}, 60L);  // With fa
 TaskUtil.runAtEntity(player, () -> player.damage(5), 3L, TimeUnit.SECONDS);
 
 TaskUtil.runAtEntityRepeating(npc, () -> npc.lookAt(target), 0L, 5L);  // Every 0.25s
-TaskUtil.runAtEntityRepeating(npc, wrappedTask -> {
+TaskUtil.runAtEntityRepeating(npc, task -> {
     npc.lookAt(target);
-    // wrappedTask.cancel() if condition met
+    // task.cancel() if condition met
 }, 0L, 5L);
 
 // With TimeUnit for repeating tasks
@@ -496,7 +496,7 @@ TaskUtil.runAtLocation(spawn, () -> {
 });
 
 // With CompletableFuture
-CompletableFuture<Void> locationFuture = TaskUtil.runAtLocation(spawn, wrappedTask -> {
+CompletableFuture<Void> locationFuture = TaskUtil.runAtLocation(spawn, task -> {
     world.strikeLightning(spawn);
 });
 
@@ -505,7 +505,7 @@ TaskUtil.runAtLocation(blockLocation, () -> block.setType(Material.AIR), 5L, Tim
 TaskUtil.runAtLocationRepeating(location, () -> spawnParticles(), 0L, 10L);
 
 // With CompletableFuture and TimeUnit
-CompletableFuture<Void> particleFuture = TaskUtil.runAtLocation(location, wrappedTask -> {
+CompletableFuture<Void> particleFuture = TaskUtil.runAtLocation(location, task -> {
     spawnParticles();
 }, 1L, TimeUnit.SECONDS);
 ```
@@ -513,7 +513,7 @@ CompletableFuture<Void> particleFuture = TaskUtil.runAtLocation(location, wrappe
 **Task Management:**
 ```java
 // Store task reference
-WrappedTask task = TaskUtil.runSyncRepeating(() -> updateBoard(), 0L, 20L);
+ScheduledTask task = TaskUtil.runSyncRepeating(() -> updateBoard(), 0L, 20L);
 
 // Cancel task later
 TaskUtil.cancel(task);
@@ -524,12 +524,12 @@ TaskUtil.cancelTask(task);
 TaskUtil.cancelAllTasks();
 
 // Get all tasks
-List<WrappedTask> allTasks = TaskUtil.getAllTasks();
-List<WrappedTask> allServerTasks = TaskUtil.getAllServerTasks();
+List<ScheduledTask> allTasks = TaskUtil.getAllTasks();
+List<ScheduledTask> allServerTasks = TaskUtil.getAllServerTasks();
 
 // Wrap a Bukkit task
 Object bukkitTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {}, 0L, 20L);
-WrappedTask wrapped = TaskUtil.wrapTask(bukkitTask);
+ScheduledTask wrapped = TaskUtil.wrapTask(bukkitTask);
 
 // Check server type
 if (TaskUtil.isFolia()) {
@@ -571,64 +571,64 @@ if (TaskUtil.isOwnedByCurrentRegion(player)) {
 
 **Sync Tasks (Global Region):**
 - `runSync(Runnable)` - Run on next tick
-- `runSync(Consumer<WrappedTask>)` → `CompletableFuture<Void>` - Run on next tick with task reference
-- `runSync(Runnable, long)` → `WrappedTask` - Run after delay (ticks)
-- `runSync(Consumer<WrappedTask>, long)` → `CompletableFuture<Void>` - Run after delay (ticks)
-- `runSync(Runnable, long, TimeUnit)` → `WrappedTask` - Run after delay (custom unit)
-- `runSync(Consumer<WrappedTask>, long, TimeUnit)` → `CompletableFuture<Void>` - Run after delay (custom unit)
-- `runSyncRepeating(Runnable, delay, period)` → `WrappedTask` - Repeating task (ticks)
-- `runSyncRepeating(Consumer<WrappedTask>, delay, period)` - Repeating task (ticks, no return)
-- `runSyncRepeating(Runnable, delay, period, TimeUnit)` → `WrappedTask` - Repeating task (custom unit)
-- `runSyncRepeating(Consumer<WrappedTask>, delay, period, TimeUnit)` - Repeating task (custom unit, no return)
+- `runSync(Consumer<ScheduledTask>)` → `CompletableFuture<Void>` - Run on next tick with task reference
+- `runSync(Runnable, long)` → `ScheduledTask` - Run after delay (ticks)
+- `runSync(Consumer<ScheduledTask>, long)` → `CompletableFuture<Void>` - Run after delay (ticks)
+- `runSync(Runnable, long, TimeUnit)` → `ScheduledTask` - Run after delay (custom unit)
+- `runSync(Consumer<ScheduledTask>, long, TimeUnit)` → `CompletableFuture<Void>` - Run after delay (custom unit)
+- `runSyncRepeating(Runnable, delay, period)` → `ScheduledTask` - Repeating task (ticks)
+- `runSyncRepeating(Consumer<ScheduledTask>, delay, period)` - Repeating task (ticks, no return)
+- `runSyncRepeating(Runnable, delay, period, TimeUnit)` → `ScheduledTask` - Repeating task (custom unit)
+- `runSyncRepeating(Consumer<ScheduledTask>, delay, period, TimeUnit)` - Repeating task (custom unit, no return)
 
 **Async Tasks:**
 - `runAsync(Runnable)` - Run immediately on async thread
-- `runAsync(Consumer<WrappedTask>)` → `CompletableFuture<Void>` - Run immediately on async thread
-- `runAsync(Runnable, long)` → `WrappedTask` - Run after delay (ticks)
-- `runAsync(Consumer<WrappedTask>, long)` → `CompletableFuture<Void>` - Run after delay (ticks)
-- `runAsync(Runnable, long, TimeUnit)` → `WrappedTask` - Run after delay (custom unit)
-- `runAsync(Consumer<WrappedTask>, long, TimeUnit)` → `CompletableFuture<Void>` - Run after delay (custom unit)
-- `runAsyncRepeating(Runnable, delay, period)` → `WrappedTask` - Repeating async task (ticks)
-- `runAsyncRepeating(Consumer<WrappedTask>, delay, period)` - Repeating async task (ticks, no return)
-- `runAsyncRepeating(Runnable, delay, period, TimeUnit)` → `WrappedTask` - Repeating async task (custom unit)
-- `runAsyncRepeating(Consumer<WrappedTask>, delay, period, TimeUnit)` - Repeating async task (custom unit, no return)
+- `runAsync(Consumer<ScheduledTask>)` → `CompletableFuture<Void>` - Run immediately on async thread
+- `runAsync(Runnable, long)` → `ScheduledTask` - Run after delay (ticks)
+- `runAsync(Consumer<ScheduledTask>, long)` → `CompletableFuture<Void>` - Run after delay (ticks)
+- `runAsync(Runnable, long, TimeUnit)` → `ScheduledTask` - Run after delay (custom unit)
+- `runAsync(Consumer<ScheduledTask>, long, TimeUnit)` → `CompletableFuture<Void>` - Run after delay (custom unit)
+- `runAsyncRepeating(Runnable, delay, period)` → `ScheduledTask` - Repeating async task (ticks)
+- `runAsyncRepeating(Consumer<ScheduledTask>, delay, period)` - Repeating async task (ticks, no return)
+- `runAsyncRepeating(Runnable, delay, period, TimeUnit)` → `ScheduledTask` - Repeating async task (custom unit)
+- `runAsyncRepeating(Consumer<ScheduledTask>, delay, period, TimeUnit)` - Repeating async task (custom unit, no return)
 
 **Entity Region Tasks:**
 - `runAtEntity(Entity, Runnable)` - Run immediately on entity's region
-- `runAtEntity(Entity, Consumer<WrappedTask>)` → `CompletableFuture<EntityTaskResult>` - Run immediately with result
-- `runAtEntityWithFallback(Entity, Consumer<WrappedTask>, Runnable)` → `CompletableFuture<EntityTaskResult>` - Run with fallback
-- `runAtEntity(Entity, Runnable, long)` → `WrappedTask` - Run after delay (ticks)
-- `runAtEntity(Entity, Consumer<WrappedTask>, long)` → `CompletableFuture<Void>` - Run after delay (ticks)
-- `runAtEntity(Entity, Runnable, Runnable, long)` → `WrappedTask` - Run after delay with fallback (ticks)
-- `runAtEntity(Entity, Consumer<WrappedTask>, Runnable, long)` → `CompletableFuture<Void>` - Run after delay with fallback (ticks)
-- `runAtEntity(Entity, Runnable, long, TimeUnit)` → `WrappedTask` - Run after delay (custom unit)
-- `runAtEntity(Entity, Consumer<WrappedTask>, long, TimeUnit)` → `CompletableFuture<Void>` - Run after delay (custom unit)
-- `runAtEntityRepeating(Entity, Runnable, delay, period)` → `WrappedTask` - Repeating entity task (ticks)
-- `runAtEntityRepeating(Entity, Runnable, Runnable, delay, period)` → `WrappedTask` - Repeating entity task with fallback (ticks)
-- `runAtEntityRepeating(Entity, Consumer<WrappedTask>, delay, period)` - Repeating entity task (ticks, no return)
-- `runAtEntityRepeating(Entity, Consumer<WrappedTask>, Runnable, delay, period)` - Repeating entity task with fallback (ticks, no return)
-- `runAtEntityRepeating(Entity, Runnable, delay, period, TimeUnit)` → `WrappedTask` - Repeating entity task (custom unit)
-- `runAtEntityRepeating(Entity, Consumer<WrappedTask>, delay, period, TimeUnit)` - Repeating entity task (custom unit, no return)
+- `runAtEntity(Entity, Consumer<ScheduledTask>)` → `CompletableFuture<TaskResult>` - Run immediately with result
+- `runAtEntityWithFallback(Entity, Consumer<ScheduledTask>, Runnable)` → `CompletableFuture<TaskResult>` - Run with fallback
+- `runAtEntity(Entity, Runnable, long)` → `ScheduledTask` - Run after delay (ticks)
+- `runAtEntity(Entity, Consumer<ScheduledTask>, long)` → `CompletableFuture<Void>` - Run after delay (ticks)
+- `runAtEntity(Entity, Runnable, Runnable, long)` → `ScheduledTask` - Run after delay with fallback (ticks)
+- `runAtEntity(Entity, Consumer<ScheduledTask>, Runnable, long)` → `CompletableFuture<Void>` - Run after delay with fallback (ticks)
+- `runAtEntity(Entity, Runnable, long, TimeUnit)` → `ScheduledTask` - Run after delay (custom unit)
+- `runAtEntity(Entity, Consumer<ScheduledTask>, long, TimeUnit)` → `CompletableFuture<Void>` - Run after delay (custom unit)
+- `runAtEntityRepeating(Entity, Runnable, delay, period)` → `ScheduledTask` - Repeating entity task (ticks)
+- `runAtEntityRepeating(Entity, Runnable, Runnable, delay, period)` → `ScheduledTask` - Repeating entity task with fallback (ticks)
+- `runAtEntityRepeating(Entity, Consumer<ScheduledTask>, delay, period)` - Repeating entity task (ticks, no return)
+- `runAtEntityRepeating(Entity, Consumer<ScheduledTask>, Runnable, delay, period)` - Repeating entity task with fallback (ticks, no return)
+- `runAtEntityRepeating(Entity, Runnable, delay, period, TimeUnit)` → `ScheduledTask` - Repeating entity task (custom unit)
+- `runAtEntityRepeating(Entity, Consumer<ScheduledTask>, delay, period, TimeUnit)` - Repeating entity task (custom unit, no return)
 
 **Location Region Tasks:**
 - `runAtLocation(Location, Runnable)` - Run immediately on location's region
-- `runAtLocation(Location, Consumer<WrappedTask>)` → `CompletableFuture<Void>` - Run immediately
-- `runAtLocation(Location, Runnable, long)` → `WrappedTask` - Run after delay (ticks)
-- `runAtLocation(Location, Consumer<WrappedTask>, long)` → `CompletableFuture<Void>` - Run after delay (ticks)
-- `runAtLocation(Location, Runnable, long, TimeUnit)` → `WrappedTask` - Run after delay (custom unit)
-- `runAtLocation(Location, Consumer<WrappedTask>, long, TimeUnit)` → `CompletableFuture<Void>` - Run after delay (custom unit)
-- `runAtLocationRepeating(Location, Runnable, delay, period)` → `WrappedTask` - Repeating location task (ticks)
-- `runAtLocationRepeating(Location, Consumer<WrappedTask>, delay, period)` - Repeating location task (ticks, no return)
-- `runAtLocationRepeating(Location, Runnable, delay, period, TimeUnit)` → `WrappedTask` - Repeating location task (custom unit)
-- `runAtLocationRepeating(Location, Consumer<WrappedTask>, delay, period, TimeUnit)` - Repeating location task (custom unit, no return)
+- `runAtLocation(Location, Consumer<ScheduledTask>)` → `CompletableFuture<Void>` - Run immediately
+- `runAtLocation(Location, Runnable, long)` → `ScheduledTask` - Run after delay (ticks)
+- `runAtLocation(Location, Consumer<ScheduledTask>, long)` → `CompletableFuture<Void>` - Run after delay (ticks)
+- `runAtLocation(Location, Runnable, long, TimeUnit)` → `ScheduledTask` - Run after delay (custom unit)
+- `runAtLocation(Location, Consumer<ScheduledTask>, long, TimeUnit)` → `CompletableFuture<Void>` - Run after delay (custom unit)
+- `runAtLocationRepeating(Location, Runnable, delay, period)` → `ScheduledTask` - Repeating location task (ticks)
+- `runAtLocationRepeating(Location, Consumer<ScheduledTask>, delay, period)` - Repeating location task (ticks, no return)
+- `runAtLocationRepeating(Location, Runnable, delay, period, TimeUnit)` → `ScheduledTask` - Repeating location task (custom unit)
+- `runAtLocationRepeating(Location, Consumer<ScheduledTask>, delay, period, TimeUnit)` - Repeating location task (custom unit, no return)
 
 **Utility Methods:**
-- `cancel(WrappedTask)` - Cancel a task
-- `cancelTask(WrappedTask)` - Cancel a task using scheduler
+- `cancel(ScheduledTask)` - Cancel a task
+- `cancelTask(ScheduledTask)` - Cancel a task using scheduler
 - `cancelAllTasks()` - Cancel all tasks from this plugin
-- `getAllTasks()` → `List<WrappedTask>` - Get all tasks from this plugin
-- `getAllServerTasks()` → `List<WrappedTask>` - Get all tasks from all plugins
-- `wrapTask(Object)` → `WrappedTask` - Wrap a Bukkit task
+- `getAllTasks()` → `List<ScheduledTask>` - Get all tasks from this plugin
+- `getAllServerTasks()` → `List<ScheduledTask>` - Get all tasks from all plugins
+- `wrapTask(Object)` → `ScheduledTask` - Wrap a Bukkit task
 - `isGlobalTickThread()` - Check if on global tick thread
 - `isFolia()` - Check if running on Folia
 - `isOwnedByCurrentRegion(Location)` - Check location ownership

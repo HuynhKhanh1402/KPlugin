@@ -1,6 +1,6 @@
 package dev.khanh.plugin.kplugin.gui.animation;
 
-import com.tcoded.folialib.wrapper.task.WrappedTask;
+import dev.khanh.plugin.kplugin.task.ScheduledTask;
 import dev.khanh.plugin.kplugin.gui.GUI;
 import dev.khanh.plugin.kplugin.util.TaskUtil;
 import org.bukkit.inventory.Inventory;
@@ -34,7 +34,7 @@ public final class FrameAnimation {
     
     // State tracking for diff updates
     private final Map<Integer, ItemStack> currentVisibleState;
-    private WrappedTask animationTask;
+    private ScheduledTask animationTask;
     
     /**
      * Creates a new frame animation for the specified GUI.

@@ -1,8 +1,9 @@
 package dev.khanh.plugin.kplugin.util;
 
-import com.tcoded.folialib.enums.EntityTaskResult;
-import com.tcoded.folialib.wrapper.task.WrappedTask;
 import dev.khanh.plugin.kplugin.KPlugin;
+import dev.khanh.plugin.kplugin.task.ScheduledTaskImpl;
+import dev.khanh.plugin.kplugin.task.ScheduledTask;
+import dev.khanh.plugin.kplugin.task.TaskResult;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -43,8 +44,8 @@ public class TaskUtil {
      * @param task the task to run
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runSync(Consumer<WrappedTask> task) {
-        return KPlugin.getFoliaLib().getScheduler().runNextTick(task);
+    public static CompletableFuture<Void> runSync(Consumer<ScheduledTask> task) {
+        return KPlugin.getFoliaLib().getScheduler().runNextTick(ScheduledTaskImpl.adaptConsumer(task));
     }
 
     /**
@@ -54,7 +55,7 @@ public class TaskUtil {
      * @param task the task to run
      */
     public static void runSync(Runnable task) {
-        KPlugin.getFoliaLib().getScheduler().runNextTick(wrappedTask -> task.run());
+        KPlugin.getFoliaLib().getScheduler().runNextTick(t -> task.run());
     }
 
     /**
@@ -62,10 +63,10 @@ public class TaskUtil {
      *
      * @param task  the task to run
      * @param delay the delay in ticks before the task is executed
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runSync(Runnable task, long delay) {
-        return KPlugin.getFoliaLib().getScheduler().runLater(task, delay);
+    public static ScheduledTask runSync(Runnable task, long delay) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runLater(task, delay));
     }
 
     /**
@@ -75,8 +76,8 @@ public class TaskUtil {
      * @param delay the delay before the task is executed
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runSync(Consumer<WrappedTask> task, long delay) {
-        return KPlugin.getFoliaLib().getScheduler().runLater(task, delay);
+    public static CompletableFuture<Void> runSync(Consumer<ScheduledTask> task, long delay) {
+        return KPlugin.getFoliaLib().getScheduler().runLater(ScheduledTaskImpl.adaptConsumer(task), delay);
     }
 
     /**
@@ -85,10 +86,10 @@ public class TaskUtil {
      * @param task     the task to run
      * @param delay    the delay before the task is executed
      * @param timeUnit the time unit of the delay
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runSync(Runnable task, long delay, TimeUnit timeUnit) {
-        return KPlugin.getFoliaLib().getScheduler().runLater(task, delay, timeUnit);
+    public static ScheduledTask runSync(Runnable task, long delay, TimeUnit timeUnit) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runLater(task, delay, timeUnit));
     }
 
     /**
@@ -99,8 +100,8 @@ public class TaskUtil {
      * @param timeUnit the time unit of the delay
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runSync(Consumer<WrappedTask> task, long delay, TimeUnit timeUnit) {
-        return KPlugin.getFoliaLib().getScheduler().runLater(task, delay, timeUnit);
+    public static CompletableFuture<Void> runSync(Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit) {
+        return KPlugin.getFoliaLib().getScheduler().runLater(ScheduledTaskImpl.adaptConsumer(task), delay, timeUnit);
     }
 
     /**
@@ -109,10 +110,10 @@ public class TaskUtil {
      * @param task   the task to run
      * @param delay  the delay in ticks before the first execution
      * @param period the period in ticks between executions
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runSyncRepeating(Runnable task, long delay, long period) {
-        return KPlugin.getFoliaLib().getScheduler().runTimer(task, delay, period);
+    public static ScheduledTask runSyncRepeating(Runnable task, long delay, long period) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runTimer(task, delay, period));
     }
 
     /**
@@ -122,8 +123,8 @@ public class TaskUtil {
      * @param delay  the delay in ticks before the first execution
      * @param period the period in ticks between executions
      */
-    public static void runSyncRepeating(Consumer<WrappedTask> task, long delay, long period) {
-        KPlugin.getFoliaLib().getScheduler().runTimer(task, delay, period);
+    public static void runSyncRepeating(Consumer<ScheduledTask> task, long delay, long period) {
+        KPlugin.getFoliaLib().getScheduler().runTimer(ScheduledTaskImpl.adaptConsumer(task), delay, period);
     }
 
     /**
@@ -133,10 +134,10 @@ public class TaskUtil {
      * @param delay    the delay before the first execution
      * @param period   the period between executions
      * @param timeUnit the time unit of the delay and period
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runSyncRepeating(Runnable task, long delay, long period, TimeUnit timeUnit) {
-        return KPlugin.getFoliaLib().getScheduler().runTimer(task, delay, period, timeUnit);
+    public static ScheduledTask runSyncRepeating(Runnable task, long delay, long period, TimeUnit timeUnit) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runTimer(task, delay, period, timeUnit));
     }
 
     /**
@@ -147,8 +148,8 @@ public class TaskUtil {
      * @param period   the period between executions
      * @param timeUnit the time unit of the delay and period
      */
-    public static void runSyncRepeating(Consumer<WrappedTask> task, long delay, long period, TimeUnit timeUnit) {
-        KPlugin.getFoliaLib().getScheduler().runTimer(task, delay, period, timeUnit);
+    public static void runSyncRepeating(Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit) {
+        KPlugin.getFoliaLib().getScheduler().runTimer(ScheduledTaskImpl.adaptConsumer(task), delay, period, timeUnit);
     }
 
     // ==================== Async Methods ====================
@@ -160,8 +161,8 @@ public class TaskUtil {
      * @param task the task to run
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAsync(Consumer<WrappedTask> task) {
-        return KPlugin.getFoliaLib().getScheduler().runAsync(task);
+    public static CompletableFuture<Void> runAsync(Consumer<ScheduledTask> task) {
+        return KPlugin.getFoliaLib().getScheduler().runAsync(ScheduledTaskImpl.adaptConsumer(task));
     }
 
     /**
@@ -171,7 +172,7 @@ public class TaskUtil {
      * @param task the task to run
      */
     public static void runAsync(Runnable task) {
-        KPlugin.getFoliaLib().getScheduler().runAsync(wrappedTask -> task.run());
+        KPlugin.getFoliaLib().getScheduler().runAsync(t -> task.run());
     }
 
     /**
@@ -179,10 +180,10 @@ public class TaskUtil {
      *
      * @param task  the task to run
      * @param delay the delay in ticks before the task is executed
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAsync(Runnable task, long delay) {
-        return KPlugin.getFoliaLib().getScheduler().runLaterAsync(task, delay);
+    public static ScheduledTask runAsync(Runnable task, long delay) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runLaterAsync(task, delay));
     }
 
     /**
@@ -192,8 +193,8 @@ public class TaskUtil {
      * @param delay the delay before the task is executed
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAsync(Consumer<WrappedTask> task, long delay) {
-        return KPlugin.getFoliaLib().getScheduler().runLaterAsync(task, delay);
+    public static CompletableFuture<Void> runAsync(Consumer<ScheduledTask> task, long delay) {
+        return KPlugin.getFoliaLib().getScheduler().runLaterAsync(ScheduledTaskImpl.adaptConsumer(task), delay);
     }
 
     /**
@@ -202,10 +203,10 @@ public class TaskUtil {
      * @param task     the task to run
      * @param delay    the delay before the task is executed
      * @param timeUnit the time unit of the delay
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAsync(Runnable task, long delay, TimeUnit timeUnit) {
-        return KPlugin.getFoliaLib().getScheduler().runLaterAsync(task, delay, timeUnit);
+    public static ScheduledTask runAsync(Runnable task, long delay, TimeUnit timeUnit) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runLaterAsync(task, delay, timeUnit));
     }
 
     /**
@@ -216,8 +217,8 @@ public class TaskUtil {
      * @param timeUnit the time unit of the delay
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAsync(Consumer<WrappedTask> task, long delay, TimeUnit timeUnit) {
-        return KPlugin.getFoliaLib().getScheduler().runLaterAsync(task, delay, timeUnit);
+    public static CompletableFuture<Void> runAsync(Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit) {
+        return KPlugin.getFoliaLib().getScheduler().runLaterAsync(ScheduledTaskImpl.adaptConsumer(task), delay, timeUnit);
     }
 
     /**
@@ -226,10 +227,10 @@ public class TaskUtil {
      * @param task   the task to run
      * @param delay  the delay in ticks before the first execution
      * @param period the period in ticks between executions
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAsyncRepeating(Runnable task, long delay, long period) {
-        return KPlugin.getFoliaLib().getScheduler().runTimerAsync(task, delay, period);
+    public static ScheduledTask runAsyncRepeating(Runnable task, long delay, long period) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runTimerAsync(task, delay, period));
     }
 
     /**
@@ -239,8 +240,8 @@ public class TaskUtil {
      * @param delay  the delay in ticks before the first execution
      * @param period the period in ticks between executions
      */
-    public static void runAsyncRepeating(Consumer<WrappedTask> task, long delay, long period) {
-        KPlugin.getFoliaLib().getScheduler().runTimerAsync(task, delay, period);
+    public static void runAsyncRepeating(Consumer<ScheduledTask> task, long delay, long period) {
+        KPlugin.getFoliaLib().getScheduler().runTimerAsync(ScheduledTaskImpl.adaptConsumer(task), delay, period);
     }
 
     /**
@@ -250,10 +251,10 @@ public class TaskUtil {
      * @param delay    the delay before the first execution
      * @param period   the period between executions
      * @param timeUnit the time unit of the delay and period
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAsyncRepeating(Runnable task, long delay, long period, TimeUnit timeUnit) {
-        return KPlugin.getFoliaLib().getScheduler().runTimerAsync(task, delay, period, timeUnit);
+    public static ScheduledTask runAsyncRepeating(Runnable task, long delay, long period, TimeUnit timeUnit) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runTimerAsync(task, delay, period, timeUnit));
     }
 
     /**
@@ -264,8 +265,8 @@ public class TaskUtil {
      * @param period   the period between executions
      * @param timeUnit the time unit of the delay and period
      */
-    public static void runAsyncRepeating(Consumer<WrappedTask> task, long delay, long period, TimeUnit timeUnit) {
-        KPlugin.getFoliaLib().getScheduler().runTimerAsync(task, delay, period, timeUnit);
+    public static void runAsyncRepeating(Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit) {
+        KPlugin.getFoliaLib().getScheduler().runTimerAsync(ScheduledTaskImpl.adaptConsumer(task), delay, period, timeUnit);
     }
 
     // ==================== Entity Region Methods ====================
@@ -278,10 +279,11 @@ public class TaskUtil {
      *
      * @param entity the entity whose region will execute the task
      * @param task   the task to run
-     * @return CompletableFuture with EntityTaskResult indicating the result
+     * @return CompletableFuture with TaskResult indicating the result
      */
-    public static CompletableFuture<EntityTaskResult> runAtEntity(Entity entity, Consumer<WrappedTask> task) {
-        return KPlugin.getFoliaLib().getScheduler().runAtEntity(entity, task);
+    public static CompletableFuture<TaskResult> runAtEntity(Entity entity, Consumer<ScheduledTask> task) {
+        return KPlugin.getFoliaLib().getScheduler().runAtEntity(entity, ScheduledTaskImpl.adaptConsumer(task))
+                .thenApply(TaskResult::from);
     }
 
     /**
@@ -294,7 +296,7 @@ public class TaskUtil {
      * @param task   the task to run
      */
     public static void runAtEntity(Entity entity, Runnable task) {
-        KPlugin.getFoliaLib().getScheduler().runAtEntity(entity, wrappedTask -> task.run());
+        KPlugin.getFoliaLib().getScheduler().runAtEntity(entity, t -> task.run());
     }
 
     /**
@@ -306,10 +308,11 @@ public class TaskUtil {
      * @param entity   the entity whose region will execute the task
      * @param task     the task to run
      * @param fallback the fallback task to run if entity is invalid
-     * @return CompletableFuture with EntityTaskResult indicating the result
+     * @return CompletableFuture with TaskResult indicating the result
      */
-    public static CompletableFuture<EntityTaskResult> runAtEntityWithFallback(Entity entity, Consumer<WrappedTask> task, Runnable fallback) {
-        return KPlugin.getFoliaLib().getScheduler().runAtEntityWithFallback(entity, task, fallback);
+    public static CompletableFuture<TaskResult> runAtEntityWithFallback(Entity entity, Consumer<ScheduledTask> task, Runnable fallback) {
+        return KPlugin.getFoliaLib().getScheduler().runAtEntityWithFallback(entity, ScheduledTaskImpl.adaptConsumer(task), fallback)
+                .thenApply(TaskResult::from);
     }
 
     /**
@@ -318,10 +321,10 @@ public class TaskUtil {
      * @param entity the entity whose region will execute the task
      * @param task   the task to run
      * @param delay  the delay in ticks before the task is executed
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAtEntity(Entity entity, Runnable task, long delay) {
-        return KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, task, delay);
+    public static ScheduledTask runAtEntity(Entity entity, Runnable task, long delay) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, task, delay));
     }
 
     /**
@@ -332,8 +335,8 @@ public class TaskUtil {
      * @param delay  the delay before the task is executed
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAtEntity(Entity entity, Consumer<WrappedTask> task, long delay) {
-        return KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, task, delay);
+    public static CompletableFuture<Void> runAtEntity(Entity entity, Consumer<ScheduledTask> task, long delay) {
+        return KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, ScheduledTaskImpl.adaptConsumer(task), delay);
     }
 
     /**
@@ -343,10 +346,10 @@ public class TaskUtil {
      * @param task     the task to run
      * @param fallback the fallback task to run if entity is invalid
      * @param delay    the delay in ticks before the task is executed
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAtEntity(Entity entity, Runnable task, Runnable fallback, long delay) {
-        return KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, task, fallback, delay);
+    public static ScheduledTask runAtEntity(Entity entity, Runnable task, Runnable fallback, long delay) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, task, fallback, delay));
     }
 
     /**
@@ -358,8 +361,8 @@ public class TaskUtil {
      * @param delay    the delay before the task is executed
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAtEntity(Entity entity, Consumer<WrappedTask> task, Runnable fallback, long delay) {
-        return KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, task, fallback, delay);
+    public static CompletableFuture<Void> runAtEntity(Entity entity, Consumer<ScheduledTask> task, Runnable fallback, long delay) {
+        return KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, ScheduledTaskImpl.adaptConsumer(task), fallback, delay);
     }
 
     /**
@@ -369,10 +372,10 @@ public class TaskUtil {
      * @param task     the task to run
      * @param delay    the delay before the task is executed
      * @param timeUnit the time unit of the delay
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAtEntity(Entity entity, Runnable task, long delay, TimeUnit timeUnit) {
-        return KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, task, delay, timeUnit);
+    public static ScheduledTask runAtEntity(Entity entity, Runnable task, long delay, TimeUnit timeUnit) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, task, delay, timeUnit));
     }
 
     /**
@@ -384,8 +387,8 @@ public class TaskUtil {
      * @param timeUnit the time unit of the delay
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAtEntity(Entity entity, Consumer<WrappedTask> task, long delay, TimeUnit timeUnit) {
-        return KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, task, delay, timeUnit);
+    public static CompletableFuture<Void> runAtEntity(Entity entity, Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit) {
+        return KPlugin.getFoliaLib().getScheduler().runAtEntityLater(entity, ScheduledTaskImpl.adaptConsumer(task), delay, timeUnit);
     }
 
     /**
@@ -395,10 +398,10 @@ public class TaskUtil {
      * @param task   the task to run
      * @param delay  the delay in ticks before the first execution
      * @param period the period in ticks between executions
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAtEntityRepeating(Entity entity, Runnable task, long delay, long period) {
-        return KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, task, delay, period);
+    public static ScheduledTask runAtEntityRepeating(Entity entity, Runnable task, long delay, long period) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, task, delay, period));
     }
 
     /**
@@ -409,10 +412,10 @@ public class TaskUtil {
      * @param fallback the fallback task to run if entity is invalid
      * @param delay    the delay in ticks before the first execution
      * @param period   the period in ticks between executions
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAtEntityRepeating(Entity entity, Runnable task, Runnable fallback, long delay, long period) {
-        return KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, task, fallback, delay, period);
+    public static ScheduledTask runAtEntityRepeating(Entity entity, Runnable task, Runnable fallback, long delay, long period) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, task, fallback, delay, period));
     }
 
     /**
@@ -423,8 +426,8 @@ public class TaskUtil {
      * @param delay  the delay in ticks before the first execution
      * @param period the period in ticks between executions
      */
-    public static void runAtEntityRepeating(Entity entity, Consumer<WrappedTask> task, long delay, long period) {
-        KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, task, delay, period);
+    public static void runAtEntityRepeating(Entity entity, Consumer<ScheduledTask> task, long delay, long period) {
+        KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, ScheduledTaskImpl.adaptConsumer(task), delay, period);
     }
 
     /**
@@ -436,8 +439,8 @@ public class TaskUtil {
      * @param delay    the delay in ticks before the first execution
      * @param period   the period in ticks between executions
      */
-    public static void runAtEntityRepeating(Entity entity, Consumer<WrappedTask> task, Runnable fallback, long delay, long period) {
-        KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, task, fallback, delay, period);
+    public static void runAtEntityRepeating(Entity entity, Consumer<ScheduledTask> task, Runnable fallback, long delay, long period) {
+        KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, ScheduledTaskImpl.adaptConsumer(task), fallback, delay, period);
     }
 
     /**
@@ -448,10 +451,10 @@ public class TaskUtil {
      * @param delay    the delay before the first execution
      * @param period   the period between executions
      * @param timeUnit the time unit of the delay and period
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAtEntityRepeating(Entity entity, Runnable task, long delay, long period, TimeUnit timeUnit) {
-        return KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, task, delay, period, timeUnit);
+    public static ScheduledTask runAtEntityRepeating(Entity entity, Runnable task, long delay, long period, TimeUnit timeUnit) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, task, delay, period, timeUnit));
     }
 
     /**
@@ -463,8 +466,8 @@ public class TaskUtil {
      * @param period   the period between executions
      * @param timeUnit the time unit of the delay and period
      */
-    public static void runAtEntityRepeating(Entity entity, Consumer<WrappedTask> task, long delay, long period, TimeUnit timeUnit) {
-        KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, task, delay, period, timeUnit);
+    public static void runAtEntityRepeating(Entity entity, Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit) {
+        KPlugin.getFoliaLib().getScheduler().runAtEntityTimer(entity, ScheduledTaskImpl.adaptConsumer(task), delay, period, timeUnit);
     }
 
     // ==================== Location Region Methods ====================
@@ -479,8 +482,8 @@ public class TaskUtil {
      * @param task     the task to run
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAtLocation(Location location, Consumer<WrappedTask> task) {
-        return KPlugin.getFoliaLib().getScheduler().runAtLocation(location, task);
+    public static CompletableFuture<Void> runAtLocation(Location location, Consumer<ScheduledTask> task) {
+        return KPlugin.getFoliaLib().getScheduler().runAtLocation(location, ScheduledTaskImpl.adaptConsumer(task));
     }
 
     /**
@@ -493,7 +496,7 @@ public class TaskUtil {
      * @param task     the task to run
      */
     public static void runAtLocation(Location location, Runnable task) {
-        KPlugin.getFoliaLib().getScheduler().runAtLocation(location, wrappedTask -> task.run());
+        KPlugin.getFoliaLib().getScheduler().runAtLocation(location, t -> task.run());
     }
 
     /**
@@ -502,10 +505,10 @@ public class TaskUtil {
      * @param location the location whose region will execute the task
      * @param task     the task to run
      * @param delay    the delay in ticks before the task is executed
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAtLocation(Location location, Runnable task, long delay) {
-        return KPlugin.getFoliaLib().getScheduler().runAtLocationLater(location, task, delay);
+    public static ScheduledTask runAtLocation(Location location, Runnable task, long delay) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runAtLocationLater(location, task, delay));
     }
 
     /**
@@ -516,8 +519,8 @@ public class TaskUtil {
      * @param delay    the delay before the task is executed
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAtLocation(Location location, Consumer<WrappedTask> task, long delay) {
-        return KPlugin.getFoliaLib().getScheduler().runAtLocationLater(location, task, delay);
+    public static CompletableFuture<Void> runAtLocation(Location location, Consumer<ScheduledTask> task, long delay) {
+        return KPlugin.getFoliaLib().getScheduler().runAtLocationLater(location, ScheduledTaskImpl.adaptConsumer(task), delay);
     }
 
     /**
@@ -527,10 +530,10 @@ public class TaskUtil {
      * @param task     the task to run
      * @param delay    the delay before the task is executed
      * @param timeUnit the time unit of the delay
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAtLocation(Location location, Runnable task, long delay, TimeUnit timeUnit) {
-        return KPlugin.getFoliaLib().getScheduler().runAtLocationLater(location, task, delay, timeUnit);
+    public static ScheduledTask runAtLocation(Location location, Runnable task, long delay, TimeUnit timeUnit) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runAtLocationLater(location, task, delay, timeUnit));
     }
 
     /**
@@ -542,8 +545,8 @@ public class TaskUtil {
      * @param timeUnit the time unit of the delay
      * @return CompletableFuture that completes when the task finishes
      */
-    public static CompletableFuture<Void> runAtLocation(Location location, Consumer<WrappedTask> task, long delay, TimeUnit timeUnit) {
-        return KPlugin.getFoliaLib().getScheduler().runAtLocationLater(location, task, delay, timeUnit);
+    public static CompletableFuture<Void> runAtLocation(Location location, Consumer<ScheduledTask> task, long delay, TimeUnit timeUnit) {
+        return KPlugin.getFoliaLib().getScheduler().runAtLocationLater(location, ScheduledTaskImpl.adaptConsumer(task), delay, timeUnit);
     }
 
     /**
@@ -553,10 +556,10 @@ public class TaskUtil {
      * @param task     the task to run
      * @param delay    the delay in ticks before the first execution
      * @param period   the period in ticks between executions
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAtLocationRepeating(Location location, Runnable task, long delay, long period) {
-        return KPlugin.getFoliaLib().getScheduler().runAtLocationTimer(location, task, delay, period);
+    public static ScheduledTask runAtLocationRepeating(Location location, Runnable task, long delay, long period) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runAtLocationTimer(location, task, delay, period));
     }
 
     /**
@@ -567,8 +570,8 @@ public class TaskUtil {
      * @param delay    the delay in ticks before the first execution
      * @param period   the period in ticks between executions
      */
-    public static void runAtLocationRepeating(Location location, Consumer<WrappedTask> task, long delay, long period) {
-        KPlugin.getFoliaLib().getScheduler().runAtLocationTimer(location, task, delay, period);
+    public static void runAtLocationRepeating(Location location, Consumer<ScheduledTask> task, long delay, long period) {
+        KPlugin.getFoliaLib().getScheduler().runAtLocationTimer(location, ScheduledTaskImpl.adaptConsumer(task), delay, period);
     }
 
     /**
@@ -579,10 +582,10 @@ public class TaskUtil {
      * @param delay    the delay before the first execution
      * @param period   the period between executions
      * @param timeUnit the time unit of the delay and period
-     * @return the wrapped task that was scheduled
+     * @return the scheduled task
      */
-    public static WrappedTask runAtLocationRepeating(Location location, Runnable task, long delay, long period, TimeUnit timeUnit) {
-        return KPlugin.getFoliaLib().getScheduler().runAtLocationTimer(location, task, delay, period, timeUnit);
+    public static ScheduledTask runAtLocationRepeating(Location location, Runnable task, long delay, long period, TimeUnit timeUnit) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().runAtLocationTimer(location, task, delay, period, timeUnit));
     }
 
     /**
@@ -594,8 +597,8 @@ public class TaskUtil {
      * @param period   the period between executions
      * @param timeUnit the time unit of the delay and period
      */
-    public static void runAtLocationRepeating(Location location, Consumer<WrappedTask> task, long delay, long period, TimeUnit timeUnit) {
-        KPlugin.getFoliaLib().getScheduler().runAtLocationTimer(location, task, delay, period, timeUnit);
+    public static void runAtLocationRepeating(Location location, Consumer<ScheduledTask> task, long delay, long period, TimeUnit timeUnit) {
+        KPlugin.getFoliaLib().getScheduler().runAtLocationTimer(location, ScheduledTaskImpl.adaptConsumer(task), delay, period, timeUnit);
     }
 
     // ==================== Utility Methods ====================
@@ -671,7 +674,7 @@ public class TaskUtil {
      *
      * @param task the task to cancel
      */
-    public static void cancel(WrappedTask task) {
+    public static void cancel(ScheduledTask task) {
         if (task != null) {
             task.cancel();
         }
@@ -682,8 +685,10 @@ public class TaskUtil {
      *
      * @param task the task to cancel
      */
-    public static void cancelTask(WrappedTask task) {
-        KPlugin.getFoliaLib().getScheduler().cancelTask(task);
+    public static void cancelTask(ScheduledTask task) {
+        if (task instanceof ScheduledTaskImpl) {
+            KPlugin.getFoliaLib().getScheduler().cancelTask(((ScheduledTaskImpl) task).unwrap());
+        }
     }
 
     /**
@@ -698,8 +703,8 @@ public class TaskUtil {
      *
      * @return a list of all tasks
      */
-    public static List<WrappedTask> getAllTasks() {
-        return KPlugin.getFoliaLib().getScheduler().getAllTasks();
+    public static List<ScheduledTask> getAllTasks() {
+        return ScheduledTaskImpl.wrapList(KPlugin.getFoliaLib().getScheduler().getAllTasks());
     }
 
     /**
@@ -707,18 +712,18 @@ public class TaskUtil {
      *
      * @return a list of all server tasks
      */
-    public static List<WrappedTask> getAllServerTasks() {
-        return KPlugin.getFoliaLib().getScheduler().getAllServerTasks();
+    public static List<ScheduledTask> getAllServerTasks() {
+        return ScheduledTaskImpl.wrapList(KPlugin.getFoliaLib().getScheduler().getAllServerTasks());
     }
 
     /**
-     * Wraps a Bukkit task into a WrappedTask.
+     * Wraps a Bukkit task into a ScheduledTask.
      *
      * @param task the Bukkit task to wrap
-     * @return the wrapped task
+     * @return the scheduled task
      */
-    public static WrappedTask wrapTask(Object task) {
-        return KPlugin.getFoliaLib().getScheduler().wrapTask(task);
+    public static ScheduledTask wrapTask(Object task) {
+        return new ScheduledTaskImpl(KPlugin.getFoliaLib().getScheduler().wrapTask(task));
     }
 
     /**
